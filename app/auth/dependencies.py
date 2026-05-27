@@ -2,6 +2,7 @@ from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials
 from fastapi import Request, HTTPException, status
 from app.auth.utils import decode_jwt
+from app.redis_service import token_in_blocklist
 
 
 class TokenBearer(HTTPBearer):
@@ -21,7 +22,16 @@ class TokenBearer(HTTPBearer):
         token_data = decode_jwt(token)
 
         if not self.token_valid(token):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Access Token or Token is Expired")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
+                "error": "Token is Invalid or expired",
+                "Resolve": "Please get new tokens"
+            })
+
+        if await token_in_blocklist(token_data["jwt_id"]):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
+                "error": "Token has been Revoked or Invalid",
+                "Resolve": "You have been Logout, Please Login again"
+            })
 
         self.verify_token_data(token_data)
 

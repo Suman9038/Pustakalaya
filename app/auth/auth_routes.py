@@ -1,3 +1,4 @@
+from app.auth.dependencies import AccessTokenBearer
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth.auth_schema import UserCreateSchema, UserResponseSchema, UserLoginSchema,TokenSchema
@@ -9,6 +10,8 @@ from app.auth.auth_models import User
 from app.auth.utils import hash_password, create_access_token, verify_password
 from app.config import settings
 from app.auth.dependencies import RefreshTokenBearer
+from app.redis_service import add_token_jti_to_blocklist
+from fastapi.responses import JSONResponse
 
 
 router = APIRouter(
@@ -33,7 +36,7 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists, Please Try with new Email Address")
 
     user_data = request.model_dump()
-    new_user = User(**user_data)
+    new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
     new_user.password = hash_password(user_data["password"])
     try:
         db.add(new_user)
@@ -41,7 +44,7 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
         await db.refresh(new_user)
         return new_user
     except Exception as e:
-        await db.rollback()
+        await db.rollback() # if anything goes wrong we have to rollback the changes made in the database
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -58,7 +61,7 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
 
         print(f"Attempting login for user {user.email}")
 
-        # If user not found raise an error 
+        # If user not found raise an error
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with this Email ID not Found, Please Signup or Give a valid Email Address")
 
@@ -104,3 +107,19 @@ async def refresh_access_token(token_details: dict = Depends(RefreshTokenBearer(
             token_refresh_success=token_details["refresh"]
         )
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Refresh Token or Token is Expired")
+
+
+@router.get("/logout")
+async def logout(token_details: dict = Depends(AccessTokenBearer())):
+    jwt_id = token_details["jwt_id"]
+    expiry_timestamp = token_details["exp"]
+
+    await add_token_jti_to_blocklist(jwt_id)
+
+    return JSONResponse(
+        content={
+            "message": "Logged Out Successfully"
+        },
+        status_code= status.HTTP_200_OK
+    )
+

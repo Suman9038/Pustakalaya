@@ -1,8 +1,15 @@
+from app.auth.auth_models import User
+from sqlalchemy import select
+from fastapi import Depends
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials
 from fastapi import Request, HTTPException, status
 from app.auth.utils import decode_jwt
 from app.redis_service import token_in_blocklist
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Any
+from app.auth.auth_models import User, UserRole
 
 
 class TokenBearer(HTTPBearer):
@@ -58,3 +65,33 @@ class RefreshTokenBearer(TokenBearer):
     def verify_token_data(self, token_data:dict) -> None:
         if token_data and not token_data["refresh"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please provide valid Refresh Token") 
+
+async def get_current_user(token_details:dict= Depends(AccessTokenBearer()), db: AsyncSession = Depends(get_db)):
+    user_id = token_details["user"]["id"]
+
+    user = await db.execute(select(User).where(User.id == user_id))
+    user = user.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
+            "error": "User Not Found",
+            "Resolve": "Please Login again"
+        })
+    return user
+
+
+class RoleChecker:
+    def __init__(self, allowed_roles: List[UserRole]) -> None:
+        self.allowed_roles = set(allowed_roles)
+
+    async def __call__(self, current_user:User = Depends(get_current_user)) -> Any:
+        if current_user.role in self.allowed_roles:
+            return current_user
+        
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=
+        {
+        "error": "Unauthorized", 
+        "Resolve": "You do not have permission to access this resource"
+        }
+        )
+

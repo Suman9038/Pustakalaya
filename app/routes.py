@@ -4,13 +4,16 @@ from .database import get_db
 from typing import List
 from . import schemas, models
 from sqlalchemy import select
-from app.auth.dependencies import AccessTokenBearer
+from app.auth.dependencies import AccessTokenBearer,RoleChecker
+from app.auth.auth_models import UserRole
 
 router = APIRouter(prefix="/books", tags=["Books Route"])
 access_token_bearer = AccessTokenBearer()
+allow_admin = RoleChecker([UserRole.ADMIN])
+allow_admin_or_user = RoleChecker([UserRole.ADMIN, UserRole.USER])
 
 @router.get("/",response_model=List[schemas.BookSchema])
-async def get_all_books(db: AsyncSession = Depends(get_db), current_user= Depends(access_token_bearer)):
+async def get_all_books(db: AsyncSession = Depends(get_db), current_user= Depends(access_token_bearer), _:bool= Depends(allow_admin)):
     try :
         print(current_user)
         result = await db.execute(select(models.Book).order_by(models.Book.created_at.desc()))
@@ -22,7 +25,7 @@ async def get_all_books(db: AsyncSession = Depends(get_db), current_user= Depend
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get("/{book_id}", response_model=schemas.BookSchema)
-async def get_book(book_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer)):
+async def get_book(book_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
     try:
         result = await db.execute(select(models.Book).where(models.Book.book_id == book_id))
         book = result.scalars().first()
@@ -33,7 +36,7 @@ async def get_book(book_id: str, db: AsyncSession = Depends(get_db), current_use
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.post("/create", response_model=schemas.BookSchema, status_code=status.HTTP_201_CREATED)
-async def create_book(book_data: schemas.BookCreateSchema, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer)):
+async def create_book(book_data: schemas.BookCreateSchema, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
     try:
         new_book = models.Book(**book_data.model_dump())
         db.add(new_book)
@@ -45,7 +48,7 @@ async def create_book(book_data: schemas.BookCreateSchema, db: AsyncSession = De
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.put("/{book_id}/update", response_model=schemas.BookSchema, status_code=status.HTTP_200_OK)
-async def update_book(book_id: str, book_data: schemas.BookUpdateSchema, db: AsyncSession = Depends(get_db),current_user = Depends(access_token_bearer)):
+async def update_book(book_id: str, book_data: schemas.BookUpdateSchema, db: AsyncSession = Depends(get_db),current_user = Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
     try:
         result = await db.execute(select(models.Book).where(models.Book.book_id == book_id))
         book = result.scalars().first()
@@ -64,7 +67,7 @@ async def update_book(book_id: str, book_data: schemas.BookUpdateSchema, db: Asy
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.delete("/{book_id}/delete", response_model=schemas.BookSchema, status_code=status.HTTP_200_OK)
-async def delete_book(book_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer)):
+async def delete_book(book_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
     try:
         result = await db.execute(select(models.Book).where(models.Book.book_id == book_id))
         book = result.scalars().first()

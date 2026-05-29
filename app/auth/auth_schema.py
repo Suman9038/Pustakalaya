@@ -1,5 +1,7 @@
+from enum import Enum
 from pydantic import BaseModel, EmailStr, Field
 import uuid
+from app.auth.auth_models import UserRole
 
 class UserCreateSchema(BaseModel):
     username: str = Field(..., description="Enter Username")
@@ -14,6 +16,7 @@ class UserResponseSchema(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
+    role: UserRole
     is_verified: bool
 
     class Config:

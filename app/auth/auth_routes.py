@@ -1,4 +1,4 @@
-from app.auth.dependencies import AccessTokenBearer
+from app.auth.dependencies import AccessTokenBearer,get_current_user
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth.auth_schema import UserCreateSchema, UserResponseSchema, UserLoginSchema,TokenSchema
@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.auth.auth_models import User
 from app.auth.utils import hash_password, create_access_token, verify_password
 from app.config import settings
-from app.auth.dependencies import RefreshTokenBearer
+from app.auth.dependencies import RefreshTokenBearer, RoleChecker
 from app.redis_service import add_token_jti_to_blocklist
 from fastapi.responses import JSONResponse
 
@@ -18,6 +18,10 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+access_token_bearer = AccessTokenBearer()
+refresh_token_bearer = RefreshTokenBearer()
+role_checker = RoleChecker(["admin", "user"])
 
 @router.post("/signup", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
 async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
@@ -38,6 +42,7 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
     user_data = request.model_dump()
     new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
     new_user.password = hash_password(user_data["password"])
+    new_user.role = "user"
     try:
         db.add(new_user)
         await db.commit()
@@ -73,6 +78,7 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
             "id": str(user.id),
             "email": user.email,
             "username": user.username,
+            "role": user.role,
             "is_verified": user.is_verified
         }
         access_token = create_access_token(user_data)
@@ -92,7 +98,7 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
 
 
 @router.get("/refresh_token", response_model=TokenSchema)
-async def refresh_access_token(token_details: dict = Depends(RefreshTokenBearer())):
+async def refresh_access_token(token_details: dict = Depends(refresh_token_bearer)):
     expiry_timestamp = token_details["exp"]
     
     if datetime.fromtimestamp(expiry_timestamp) > datetime.now():
@@ -109,8 +115,13 @@ async def refresh_access_token(token_details: dict = Depends(RefreshTokenBearer(
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Refresh Token or Token is Expired")
 
 
+@router.get("/me")
+async def get_me(user= Depends(get_current_user),_:bool = Depends(role_checker)):
+    return user
+
+
 @router.get("/logout")
-async def logout(token_details: dict = Depends(AccessTokenBearer())):
+async def logout(token_details: dict = Depends(access_token_bearer)):
     jwt_id = token_details["jwt_id"]
     expiry_timestamp = token_details["exp"]
 

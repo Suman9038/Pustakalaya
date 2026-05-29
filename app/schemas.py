@@ -11,6 +11,7 @@ class BookSchema(BaseModel):
     publisher_date: datetime
     language: str
     number_of_pages: int
+    uploaded_by: str | None = None
     created_at: datetime
     updated_at: datetime
 

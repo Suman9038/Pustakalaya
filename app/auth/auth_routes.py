@@ -1,3 +1,4 @@
+from app.auth.auth_schema import CurrentUserResponseSchema
 from app.auth.dependencies import AccessTokenBearer,get_current_user
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -43,6 +44,35 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
     new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
     new_user.password = hash_password(user_data["password"])
     new_user.role = "user"
+    try:
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+        return new_user
+    except Exception as e:
+        await db.rollback() # if anything goes wrong we have to rollback the changes made in the database
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post("/signup/admin", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
+async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
+    # Validate email
+    EmailValidator.validate(request.email)
+    # Validate Password
+    PasswordValidator.validate(request.password) 
+    # Validate Username
+    UsernameValidator.validate(request.username)
+    
+    print(f"Attempted signup for admin {request.email}")
+    
+    existing_user = await db.execute(select(User).where(User.email == request.email))
+    existing_user = existing_user.scalars().first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists, Please Try with new Email Address")
+
+    user_data = request.model_dump()
+    new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
+    new_user.password = hash_password(user_data["password"])
+    new_user.role = "admin"
     try:
         db.add(new_user)
         await db.commit()
@@ -114,8 +144,51 @@ async def refresh_access_token(token_details: dict = Depends(refresh_token_beare
         )
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Refresh Token or Token is Expired")
 
+@router.post("/login/admin", response_model=TokenSchema)
+async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
+    try:
+        # Extracting credentials from the request body
+        email = request.email
+        password = request.password
 
-@router.get("/me")
+        # Validating the email and password its correct or its present in db or not 
+        user = await db.execute(select(User).where(User.email == email))
+        user = user.scalars().first()
+
+        print(f"Attempting login for user {user.email}")
+
+        # If user not found raise an error
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with this Email ID not Found, Please Signup or Give a valid Email Address")
+
+        # If user found check the password 
+        if not verify_password(password, user.password):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=" Invalid Password")
+
+        user_data = {
+            "id": str(user.id),
+            "email": user.email,
+            "username": user.username,
+            "role": user.role,
+            "is_verified": user.is_verified
+        }
+        access_token = create_access_token(user_data)
+        refresh_token = create_access_token(
+            user_data,
+            refresh=True,
+            expiry= timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+            )
+
+        if not access_token or not refresh_token:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate access token.")
+        
+        return TokenSchema(message="Login Successful", access_token=access_token, token_type="bearer", refresh_token=refresh_token)
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/me", response_model=CurrentUserResponseSchema)
 async def get_me(user= Depends(get_current_user),_:bool = Depends(role_checker)):
     return user
 

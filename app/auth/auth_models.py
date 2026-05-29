@@ -1,4 +1,5 @@
 from sqlalchemy import Column, UUID, String, Boolean, DateTime
+from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
 import uuid
@@ -22,6 +23,11 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    books = relationship(
+    "Book",
+    back_populates="owner",
+    lazy="selectin"
+    )
 
     def __repr__(self):
         return f"User(id={self.id}, username={self.username}, email={self.email}, fullname={self.first_name + ' ' + self.last_name}, is_verified={self.is_verified})"

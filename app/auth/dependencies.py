@@ -10,6 +10,7 @@ from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Any
 from app.auth.auth_models import User, UserRole
+from app.models import Book
 
 
 class TokenBearer(HTTPBearer):
@@ -95,3 +96,26 @@ class RoleChecker:
         }
         )
 
+class BookOwnerOrAdmin:
+    async def __call__(self, book_id:str, db:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
+        result = await db.execute(select(Book).where(Book.id == book_id))
+        book = result.scalar_one_or_none()
+        
+        if book is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+        
+        # admin can access everything
+        if current_user.role == UserRole.ADMIN:
+            return book
+        
+        # user can access only their own books
+        if str(book.owner_id) == str(current_user.id):
+            return book
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "Unauthorized",
+                "Resolve": "You do not have permission to access this resource"
+            }
+        )
+    

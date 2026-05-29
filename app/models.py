@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, UUID
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, UUID, ForeignKey
 from .database import Base
 import uuid
 from datetime import datetime
@@ -12,6 +13,8 @@ class Book(Base):
     publisher_date = Column(DateTime, nullable=False)
     language = Column(String, nullable=False)
     number_of_pages = Column(Integer, nullable=False)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    owner = relationship("User", back_populates="books")
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

@@ -2,6 +2,8 @@ from enum import Enum
 from pydantic import BaseModel, EmailStr, Field
 import uuid
 from app.auth.auth_models import UserRole
+from typing import List
+from app.schemas import BookSchema
 
 class UserCreateSchema(BaseModel):
     username: str = Field(..., description="Enter Username")
@@ -19,6 +21,7 @@ class UserResponseSchema(BaseModel):
     role: UserRole
     is_verified: bool
 
+
     class Config:
         from_attributes = True
 
@@ -32,3 +35,6 @@ class TokenSchema(BaseModel):
     token_type: str = "bearer"
     refresh_token: str | None = None
     token_refresh_success: bool | None = None
+
+class CurrentUserResponseSchema(UserResponseSchema):
+    books: List[BookSchema]

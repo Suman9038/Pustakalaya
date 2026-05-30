@@ -4,6 +4,7 @@ from .database import engine, Base
 from .models import Book
 from .routes import router as book_routes
 from .auth.auth_routes import router as auth_routes
+from .reviews.reviews_routes import router as reviews_routes
 
 # Lifespan event ye batata hai ki FastAPI server ke start hone par
 # aur stop hone par kaun sa code execute hoga.
@@ -32,3 +33,4 @@ app = FastAPI()
 
 app.include_router(book_routes)
 app.include_router(auth_routes)
+app.include_router(reviews_routes)

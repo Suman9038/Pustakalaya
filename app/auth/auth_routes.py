@@ -7,7 +7,7 @@ from app.validators import EmailValidator, PasswordValidator, UsernameValidator
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from sqlalchemy import select
-from app.auth.auth_models import User
+from app.models import User
 from app.auth.utils import hash_password, create_access_token, verify_password
 from app.config import settings
 from app.auth.dependencies import RefreshTokenBearer, RoleChecker

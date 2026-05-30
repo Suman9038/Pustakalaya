@@ -1,4 +1,4 @@
-from app.auth.auth_models import User
+from app.models import User
 from sqlalchemy import select
 from fastapi import Depends
 from fastapi.security import HTTPBearer
@@ -9,7 +9,7 @@ from app.redis_service import token_in_blocklist
 from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Any
-from app.auth.auth_models import User, UserRole
+from app.models import User, UserRole
 from app.models import Book
 
 
@@ -109,7 +109,7 @@ class BookOwnerOrAdmin:
             return book
         
         # user can access only their own books
-        if str(book.owner_id) == str(current_user.id):
+        if str(book.user_id) == str(current_user.id):
             return book
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

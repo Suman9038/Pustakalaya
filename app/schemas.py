@@ -1,7 +1,8 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
-from typing import Optional
+from typing import Optional,List
+from app.reviews.reviews_schema import ReviewSchemaInBook
 
 class BookSchema(BaseModel):
     book_id: UUID
@@ -15,6 +16,11 @@ class BookSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    class Config:
+        from_attributes = True
+
+class BookDetailSchema(BookSchema):
+    reviews: List[ReviewSchemaInBook] = Field(default_factory=list)
     class Config:
         from_attributes = True
 

@@ -1,9 +1,10 @@
 from enum import Enum
 from pydantic import BaseModel, EmailStr, Field
 import uuid
-from app.auth.auth_models import UserRole
+from app.models import UserRole
 from typing import List
 from app.schemas import BookSchema
+from app.reviews.reviews_schema import UserReviewSchema
 
 class UserCreateSchema(BaseModel):
     username: str = Field(..., description="Enter Username")
@@ -37,4 +38,5 @@ class TokenSchema(BaseModel):
     token_refresh_success: bool | None = None
 
 class CurrentUserResponseSchema(UserResponseSchema):
-    books: List[BookSchema]
+    books: List[BookSchema] = Field(default_factory=list)
+    reviews: List[UserReviewSchema] = Field(default_factory=list)

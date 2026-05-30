@@ -6,7 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from app.auth.auth_models import User
+from app.models import User
 from app.models import Book
 from app.database import Base
 from sqlalchemy import Column

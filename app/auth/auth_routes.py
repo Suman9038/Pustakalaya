@@ -13,7 +13,14 @@ from app.config import settings
 from app.auth.dependencies import RefreshTokenBearer, RoleChecker
 from app.redis_service import add_token_jti_to_blocklist
 from fastapi.responses import JSONResponse
-
+from app.errors import (
+    UserAlreadyExists,
+    UserNotExists,
+    InvalidCredentials,
+    TokenGenerationFailed,
+    InvalidToken,
+    PustakalayaException
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -38,7 +45,7 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
     existing_user = await db.execute(select(User).where(User.email == request.email))
     existing_user = existing_user.scalars().first()
     if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists, Please Try with new Email Address")
+        raise UserAlreadyExists()
 
     user_data = request.model_dump()
     new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
@@ -67,7 +74,7 @@ async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
     existing_user = await db.execute(select(User).where(User.email == request.email))
     existing_user = existing_user.scalars().first()
     if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists, Please Try with new Email Address")
+        raise UserAlreadyExists()
 
     user_data = request.model_dump()
     new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
@@ -98,11 +105,11 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
 
         # If user not found raise an error
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with this Email ID not Found, Please Signup or Give a valid Email Address")
+            raise UserNotExists()
 
         # If user found check the password 
         if not verify_password(password, user.password):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=" Invalid Password")
+            raise InvalidCredentials()
 
         user_data = {
             "id": str(user.id),
@@ -119,13 +126,12 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
             )
 
         if not access_token or not refresh_token:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate access token.")
+            raise TokenGenerationFailed()
         
         return TokenSchema(message="Login Successful", access_token=access_token, token_type="bearer", refresh_token=refresh_token)
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
+        raise InvalidCredentials()
 
 @router.get("/refresh_token", response_model=TokenSchema)
 async def refresh_access_token(token_details: dict = Depends(refresh_token_bearer)):
@@ -142,7 +148,7 @@ async def refresh_access_token(token_details: dict = Depends(refresh_token_beare
             token_type= "bearer",
             token_refresh_success=token_details["refresh"]
         )
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Refresh Token or Token is Expired")
+    raise InvalidToken()
 
 @router.post("/login/admin", response_model=TokenSchema)
 async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
@@ -159,11 +165,11 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
 
         # If user not found raise an error
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with this Email ID not Found, Please Signup or Give a valid Email Address")
+            raise UserNotExists()
 
         # If user found check the password 
         if not verify_password(password, user.password):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=" Invalid Password")
+            raise InvalidCredentials()
 
         user_data = {
             "id": str(user.id),
@@ -180,10 +186,11 @@ async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
             )
 
         if not access_token or not refresh_token:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate access token.")
+            raise TokenGenerationFailed()
         
         return TokenSchema(message="Login Successful", access_token=access_token, token_type="bearer", refresh_token=refresh_token)
-
+    except PustakalayaException:
+        raise 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 

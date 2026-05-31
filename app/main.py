@@ -1,10 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,status,HTTPException
 from contextlib import asynccontextmanager
 from .database import engine, Base
 from .models import Book
 from .routes import router as book_routes
 from .auth.auth_routes import router as auth_routes
 from .reviews.reviews_routes import router as reviews_routes
+from .errors import register_exception_handlers
 
 # Lifespan event ye batata hai ki FastAPI server ke start hone par
 # aur stop hone par kaun sa code execute hoga.
@@ -30,6 +31,8 @@ async def life_span(app: FastAPI):
 
 
 app = FastAPI()
+
+register_exception_handlers(app)
 
 app.include_router(book_routes)
 app.include_router(auth_routes)

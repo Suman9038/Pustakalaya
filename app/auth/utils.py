@@ -3,8 +3,11 @@ from passlib.context import CryptContext
 from datetime import timedelta,timezone
 import jwt
 from app.config import settings
-import uuid,time
-from fastapi import HTTPException, status
+import uuid
+from app.errors import (
+    InvalidToken,
+    RevokedToken
+)
 
 
 
@@ -52,6 +55,6 @@ def decode_jwt(token:str)-> dict:
         )
         return token_data
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+        raise RevokedToken()
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise InvalidToken()

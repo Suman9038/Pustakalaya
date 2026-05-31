@@ -11,7 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Any
 from app.models import User, UserRole
 from app.models import Book
-
+from app.errors import(
+    InvalidToken,
+    RevokedToken,
+    RefreshTokenRequired,
+    AccessTokenRequired,
+    UserNotExists,
+    InsufficentPermission,
+    BookNotFound,
+    PustakalayaException
+)
 
 class TokenBearer(HTTPBearer):
     # This is basically we are overwriting the __init__ method of HTTPBearer class
@@ -30,16 +39,10 @@ class TokenBearer(HTTPBearer):
         token_data = decode_jwt(token)
 
         if not self.token_valid(token):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
-                "error": "Token is Invalid or expired",
-                "Resolve": "Please get new tokens"
-            })
+            raise InvalidToken()
 
         if await token_in_blocklist(token_data["jwt_id"]):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
-                "error": "Token has been Revoked or Invalid",
-                "Resolve": "You have been Logout, Please Login again"
-            })
+            raise RevokedToken()
 
         self.verify_token_data(token_data)
 
@@ -59,13 +62,13 @@ class TokenBearer(HTTPBearer):
 class AccessTokenBearer(TokenBearer):
     def verify_token_data(self, token_data:dict) -> None:
         if token_data and token_data["refresh"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please provide valid Access Token and not Refresh Token") 
+            raise AccessTokenRequired()
 
 # Sirf refresh token allow karta hai
 class RefreshTokenBearer(TokenBearer):
     def verify_token_data(self, token_data:dict) -> None:
         if token_data and not token_data["refresh"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please provide valid Refresh Token") 
+            raise RefreshTokenRequired() 
 
 async def get_current_user(token_details:dict= Depends(AccessTokenBearer()), db: AsyncSession = Depends(get_db)):
     user_id = token_details["user"]["id"]
@@ -74,10 +77,7 @@ async def get_current_user(token_details:dict= Depends(AccessTokenBearer()), db:
     user = user.scalar_one_or_none()
 
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={
-            "error": "User Not Found",
-            "Resolve": "Please Login again"
-        })
+        raise UserNotExists()
     return user
 
 
@@ -89,12 +89,7 @@ class RoleChecker:
         if current_user.role in self.allowed_roles:
             return current_user
         
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=
-        {
-        "error": "Unauthorized", 
-        "Resolve": "You do not have permission to access this resource"
-        }
-        )
+        raise InsufficentPermission()
 
 class BookOwnerOrAdmin:
     async def __call__(self, book_id:str, db:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
@@ -102,8 +97,7 @@ class BookOwnerOrAdmin:
         book = result.scalar_one_or_none()
         
         if book is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-        
+            raise BookNotFound()
         # admin can access everything
         if current_user.role == UserRole.ADMIN:
             return book
@@ -111,11 +105,5 @@ class BookOwnerOrAdmin:
         # user can access only their own books
         if str(book.user_id) == str(current_user.id):
             return book
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "Unauthorized",
-                "Resolve": "You do not have permission to access this resource"
-            }
-        )
+        raise InsufficentPermission()
     

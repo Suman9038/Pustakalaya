@@ -1,3 +1,4 @@
+from app.errors import PustakalayaException
 from app.models import Review
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,9 +7,17 @@ from typing import List
 from . import schemas, models
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from app.auth.dependencies import AccessTokenBearer,RoleChecker, BookOwnerOrAdmin, get_current_user
+from app.auth.dependencies import (
+    AccessTokenBearer,
+    RoleChecker, 
+    BookOwnerOrAdmin, 
+    get_current_user
+)
 from app.models import UserRole
 from uuid import UUID
+from app.errors import (
+    BookNotFound
+)
 
 router = APIRouter(prefix="/books", tags=["Books Route"])
 access_token_bearer = AccessTokenBearer()
@@ -22,7 +31,7 @@ async def get_all_books(db: AsyncSession = Depends(get_db), current_user= Depend
         result = await db.execute(select(models.Book).options(selectinload(models.Book.user)).order_by(models.Book.created_at.desc()))
         books = result.scalars().all()
         if not books:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No books found")   
+            raise BookNotFound()
         return [
         schemas.BookSchema(
             book_id=book.book_id,
@@ -47,7 +56,7 @@ async def get_book(book_id: UUID, db: AsyncSession = Depends(get_db), current_us
         result = await db.execute(select(models.Book).options(selectinload(models.Book.reviews).selectinload(Review.user),selectinload(models.Book.user)).where(models.Book.book_id == book_id))
         book = result.scalar_one_or_none()
         if not book:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+            raise BookNotFound()
         return schemas.BookDetailSchema(
         book_id=book.book_id,
         title=book.title,
@@ -69,6 +78,8 @@ async def get_book(book_id: UUID, db: AsyncSession = Depends(get_db), current_us
     for review in book.reviews
 ]
     )
+    except PustakalayaException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -102,8 +113,10 @@ async def get_user_books(user_id: str, db: AsyncSession = Depends(get_db), curre
         result = await db.execute(select(models.Book).where(models.Book.user_id == user_id).order_by(models.Book.created_at.desc()))
         books = result.scalars().all()
         if not books:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No books found")
+            raise BookNotFound()
         return books
+    except PustakalayaException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 

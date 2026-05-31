@@ -7,6 +7,12 @@ from app.database import get_db
 from app.models import User, Book, UserRole
 from uuid import UUID
 from app.auth.dependencies import get_current_user
+from app.errors import (
+    ReviewNotFound,
+    BookNotFound,
+    InsufficentPermission,
+    AlreadyReviewed
+)
 
 
 router = APIRouter(
@@ -20,10 +26,7 @@ async def add_review(book_id:UUID, review:ReviewCreateSchema, db:AsyncSession=De
         book_obj = await db.execute(select(Book).where(Book.book_id == book_id))
         book = book_obj.scalar_one_or_none()
         if not book:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Book not found"
-            )
+            raise BookNotFound()
         existing_review = await db.execute(
             select(Review).where(
                 Review.user_id == current_user.id,
@@ -32,10 +35,7 @@ async def add_review(book_id:UUID, review:ReviewCreateSchema, db:AsyncSession=De
         )
 
         if existing_review.scalar_one_or_none():
-            raise HTTPException(
-                status_code=400,
-                detail="You have already reviewed this book"
-            )
+            raise AlreadyReviewed()
 
         review_data = review.model_dump()
         new_review = Review(
@@ -60,15 +60,9 @@ async def delete_review(review_id:UUID, db:AsyncSession=Depends(get_db), current
         review_obj = await db.execute(select(Review).where(Review.id == review_id))
         review = review_obj.scalar_one_or_none()
         if not review:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Review not found"
-            )
+            raise ReviewNotFound()
         if review.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to delete this review"
-            )
+            raise InsufficentPermission()
         await db.delete(review)
         await db.commit()
     except Exception as e:
@@ -83,10 +77,7 @@ async def get_review(review_id:UUID, db:AsyncSession=Depends(get_db), current_us
         review_obj = await db.execute(select(Review).where(Review.id == review_id))
         review = review_obj.scalar_one_or_none()
         if not review:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Review not found"
-            )
+            raise ReviewNotFound()
         return review
     except Exception as e:
         raise HTTPException(
@@ -100,18 +91,12 @@ async def update_review(review_id:UUID, review_data:ReviewCreateSchema, db:Async
         review_obj = await db.execute(select(Review).where(Review.id == review_id))
         review = review_obj.scalar_one_or_none()
         if not review:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Review not found"
-            )
+            raise ReviewNotFound()
         if (
             current_user.role != UserRole.ADMIN
             and review.user_id != current_user.id
         ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to update this review"
-            )
+            raise InsufficentPermission()
         review.rating = review_data.rating
         review.comment = review_data.comment
         await db.commit()

@@ -6,6 +6,7 @@ from .routes import router as book_routes
 from .auth.auth_routes import router as auth_routes
 from .reviews.reviews_routes import router as reviews_routes
 from .errors import register_exception_handlers
+from app.middleware import register_middleware
 
 # Lifespan event ye batata hai ki FastAPI server ke start hone par
 # aur stop hone par kaun sa code execute hoga.
@@ -33,7 +34,7 @@ async def life_span(app: FastAPI):
 app = FastAPI()
 
 register_exception_handlers(app)
-
+register_middleware(app)
 app.include_router(book_routes)
 app.include_router(auth_routes)
 app.include_router(reviews_routes)

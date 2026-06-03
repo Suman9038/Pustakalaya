@@ -1,3 +1,4 @@
+from fastapi import HTTPException,status
 from datetime import datetime
 from passlib.context import CryptContext
 from datetime import timedelta,timezone
@@ -6,9 +7,13 @@ from app.config import settings
 import uuid
 from app.errors import (
     InvalidToken,
-    RevokedToken
+    RevokedToken,
+    VerificationTokenInvalid,
+    VerificationTokenExpired,
+    PasswordResetTokenExpired,
+    PasswordResetTokenInvalid
 )
-
+from itsdangerous import URLSafeSerializer, SignatureExpired, BadSignature
 
 
 
@@ -58,3 +63,34 @@ def decode_jwt(token:str)-> dict:
         raise RevokedToken()
     except jwt.InvalidTokenError:
         raise InvalidToken()
+
+
+serializer = URLSafeSerializer(settings.JWT_SECRET_KEY, salt="email-configuration")
+password_reset_serializer = URLSafeSerializer(settings.JWT_SECRET_KEY, salt="password-reset")
+
+def create_url_safe_token(data:dict):
+    token = serializer.dumps(data)
+    return token
+
+def verify_url_safe_token(token:str):
+    try:
+        data = serializer.loads(token, max_age=3600)
+        return data
+    except SignatureExpired:
+        raise VerificationTokenExpired()
+    except BadSignature:
+        raise VerificationTokenInvalid()
+
+def create_password_reset_token(data:dict):
+    reset_token = password_reset_serializer.dumps(data)
+    return reset_token
+
+def verify_password_reset_token(token:str):
+    try:
+        data = password_reset_serializer.loads(token, max_age=3600)
+        return data
+    except SignatureExpired:
+        raise PasswordResetTokenExpired()
+    except BadSignature:
+        raise PasswordResetTokenInvalid()
+

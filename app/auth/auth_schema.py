@@ -26,6 +26,10 @@ class UserResponseSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class UserResponseSchemaWithMessage(BaseModel):
+    message:str
+    user: UserResponseSchema
+
 class UserLoginSchema(BaseModel):
     email: EmailStr = Field(..., description="Enter Email")
     password: str = Field(..., description="Enter Password")

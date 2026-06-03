@@ -1,0 +1,1 @@
+<!-- poetry run celery -A app.celery_client worker -P solo -l info -->

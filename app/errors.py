@@ -84,6 +84,33 @@ class AlreadyReviewed(PustakalayaException):
     """
     pass
 
+class AccountNotVerified(PustakalayaException):
+    """
+    User has not verified their account.
+    """
+    pass
+
+class VerificationTokenExpired(PustakalayaException):
+    """
+    When the verification token is expired
+    """
+    pass
+
+class VerificationTokenInvalid(PustakalayaException):
+    pass
+
+class EmailCooldownActive(PustakalayaException):
+    """If user send verification email more than 3 set as coooldown"""
+    pass
+
+class PasswordResetTokenExpired(PustakalayaException):
+    """When the password reset token is expired"""
+    pass
+
+class PasswordResetTokenInvalid(PustakalayaException):
+    """When the password reset token is invalid"""
+    pass
+
 def create_exception_handler(status_code: int, initial_detail: Any) -> Callable[[Request, Exception], JSONResponse]:
     
     async def exception_handler(request:Request, exc:PustakalayaException):
@@ -226,6 +253,66 @@ def register_exception_handlers(app: FastAPI):
             initial_detail={
                 "message":"Please provide a valid refresh token. An access token was provided instead.",
                 "error_code": "ERR_REFRESH_TOKEN_REQUIRED"
+            }
+        )
+    )
+    app.add_exception_handler(
+        VerificationTokenExpired,
+        create_exception_handler(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            initial_detail={
+                "message":"The Verification token is expired, Kindly click on resend email to get the new verification mail",
+                "error_code": "ERR_VERIFICATION_TOKEN_EXPIRED"
+            }
+        )
+    )
+    app.add_exception_handler(
+        VerificationTokenInvalid,
+        create_exception_handler(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            initial_detail={
+                "message":"Verification token is Invalid",
+                "error_code": "ERR_VERIFICATION_TOKEN_INVALID"
+            }
+        )
+    )
+    app.add_exception_handler(
+        EmailCooldownActive,
+        create_exception_handler(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            initial_detail={
+                "message":"Verification token is Invalid",
+                "error_code": "ERR_EMAIL_SET_TO_COOLDOWN"
+            }
+        )
+    )
+    app.add_exception_handler(
+        PasswordResetTokenExpired,
+        create_exception_handler(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            initial_detail={
+                "message":"The Password Reset token is expired, Kindly click on forgot password to get the new reset mail",
+                "error_code": "ERR_PASSWORD_RESET_TOKEN_EXPIRED"
+            }
+        )
+    )
+    app.add_exception_handler(
+        PasswordResetTokenInvalid,
+        create_exception_handler(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            initial_detail={
+                "message":"Password Reset token is Invalid",
+                "error_code": "ERR_PASSWORD_RESET_TOKEN_INVALID"
+            }
+        )
+    )
+    app.add_exception_handler(
+        AccountNotVerified,
+        create_exception_handler(
+            status_code=status.HTTP_403_FORBIDDEN,
+            initial_detail={
+                "message":"Your account is not verified, please verify your account",
+                "error_code": "ERR_ACCOUNT_NOT_VERIFIED"
             }
         )
     )

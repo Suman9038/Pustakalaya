@@ -1,0 +1,34 @@
+from celery import Celery
+from app.config import settings
+from app.mail import MailService
+from asgiref.sync import async_to_sync
+
+
+celery_app = Celery(
+    "pustakalaya",
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL
+)
+
+@celery_app.task()
+def send_verification_email_task(username:str,email:str,verification_url:str):
+    async_to_sync(MailService.send_verification_email)(
+        username=username,
+        to_email=email,
+        verification_url=verification_url
+    )
+
+@celery_app.task()
+def send_welcome_email_task(username:str,to_email:str):
+    async_to_sync(MailService.send_welcome_email)(
+        username=username,
+        to_email=to_email
+    )
+
+@celery_app.task()
+def send_password_reset_email_task(username:str,email:str,reset_url:str):
+    async_to_sync(MailService.send_password_reset_email)(
+        username=username,
+        to_email=email,
+        reset_url=reset_url
+    )

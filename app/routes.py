@@ -1,12 +1,8 @@
-from app.errors import PustakalayaException
-from app.models import Review
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from .database import get_db
 from typing import List
 from . import schemas, models
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from app.auth.dependencies import (
     AccessTokenBearer,
     RoleChecker, 
@@ -15,144 +11,65 @@ from app.auth.dependencies import (
 )
 from app.models import UserRole
 from uuid import UUID
-from app.errors import (
-    BookNotFound
-)
+from app.books_service import BookService
+from fastapi.responses import Response
+from app.cloud_service import CloudService
 
 router = APIRouter(prefix="/books", tags=["Books Route"])
 access_token_bearer = AccessTokenBearer()
 allow_admin = RoleChecker([UserRole.ADMIN])
 allow_admin_or_user = RoleChecker([UserRole.ADMIN, UserRole.USER])
 book_owner_or_admin = BookOwnerOrAdmin()
+book_service = BookService()
 
 @router.get("/",response_model=List[schemas.BookSchema], status_code=status.HTTP_200_OK)
-async def get_all_books(db: AsyncSession = Depends(get_db), current_user= Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
-    try :
-        result = await db.execute(select(models.Book).options(selectinload(models.Book.user)).order_by(models.Book.created_at.desc()))
-        books = result.scalars().all()
-        if not books:
-            raise BookNotFound()
-        return [
-        schemas.BookSchema(
-            book_id=book.book_id,
-            title=book.title,
-            author=book.author,
-            publisher=book.publisher,
-            publisher_date=book.publisher_date,
-            language=book.language,
-            number_of_pages=book.number_of_pages,
-            uploaded_by=book.user.username if book.user else None,
-            created_at=book.created_at,
-            updated_at=book.updated_at
-        )
-        for book in books
-]
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+async def get_all_books(db: AsyncSession = Depends(get_db), current_user: models.User= Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
 
+    return await book_service.get_all_books(db, current_user)
+
+@router.get("/search")
+async def search_books(q:str, db:AsyncSession= Depends(get_db),current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    return await book_service.search_book(q, db, current_user)
+
+    
 @router.get("/{book_id}", response_model=schemas.BookDetailSchema, status_code=status.HTTP_200_OK)
 async def get_book(book_id: UUID, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
-    try:
-        result = await db.execute(select(models.Book).options(selectinload(models.Book.reviews).selectinload(Review.user),selectinload(models.Book.user)).where(models.Book.book_id == book_id))
-        book = result.scalar_one_or_none()
-        if not book:
-            raise BookNotFound()
-        return schemas.BookDetailSchema(
-        book_id=book.book_id,
-        title=book.title,
-        author=book.author,
-        publisher=book.publisher,
-        publisher_date=book.publisher_date,
-        language=book.language,
-        number_of_pages=book.number_of_pages,
-        uploaded_by=book.user.username if book.user else None,
-        created_at=book.created_at,
-        updated_at=book.updated_at,
-        reviews=[
-        schemas.ReviewSchemaInBook(
-        id=review.id,
-        rating=review.rating,
-        comment=review.comment,
-        username=review.user.username
-    )
-    for review in book.reviews
-]
-    )
-    except PustakalayaException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    return await book_service.get_book_by_id(book_id, db, current_user)
 
 @router.post("/create", response_model=schemas.BookSchema, status_code=status.HTTP_201_CREATED)
-async def create_book(book_data: schemas.BookCreateSchema, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
-    try:
-        user_id= current_user.id
-        new_book = models.Book(**book_data.model_dump(),user_id = user_id)
-        db.add(new_book)
-        await db.commit()
-        await db.refresh(new_book)
-        return schemas.BookSchema(
-        book_id=new_book.book_id,
-        title=new_book.title,
-        author=new_book.author,
-        publisher=new_book.publisher,
-        publisher_date=new_book.publisher_date,
-        language=new_book.language,
-        number_of_pages=new_book.number_of_pages,
-        uploaded_by=current_user.username,
-        created_at=new_book.created_at,
-        updated_at=new_book.updated_at
-    )
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+async def create_book(book_data: schemas.BookCreateSchema=Depends(schemas.BookCreateSchema.as_form),file:UploadFile= File(...), db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    return await book_service.create_book(book_data,file, current_user, db)
+
 
 @router.get("/user/{user_id}",response_model=List[schemas.BookSchema])
-async def get_user_books(user_id: str, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
-    try :
-        result = await db.execute(select(models.Book).where(models.Book.user_id == user_id).order_by(models.Book.created_at.desc()))
-        books = result.scalars().all()
-        if not books:
-            raise BookNotFound()
-        return books
-    except PustakalayaException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
+async def get_user_books(user_id: UUID, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    return await book_service.get_user_books(user_id, db, current_user)
 
 
 @router.put("/{book_id}/update", response_model=schemas.BookSchema, status_code=status.HTTP_200_OK)
-async def update_book(book_id: str, book_data: schemas.BookUpdateSchema, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), book:models.Book = Depends(book_owner_or_admin)):
-    try:
-        # user_id= token_details.get("user")["id"]
-        # result = await db.execute(select(models.Book).where(models.Book.book_id == book_id, models.Book.user_id == user_id))
-        # book = result.scalars().first()
-        # if not book:
-        #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-        
-        # Update book data
-        for field, value in book_data.model_dump(exclude_unset=True).items():
-            setattr(book, field, value)
-        
-        await db.commit()
-        await db.refresh(book)
-        return book
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+async def update_book(book_id: UUID, book_data: schemas.BookUpdateSchema,file:UploadFile= File(None), db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), book:models.Book = Depends(book_owner_or_admin)):
+    return await book_service.update_book(book_id, book_data, file, db, current_user, book)
 
-@router.delete("/{book_id}/delete", response_model=schemas.BookSchema, status_code=status.HTTP_200_OK)
-async def delete_book(book_id: str, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), book: models.Book= Depends(book_owner_or_admin)):
-    try:
-        # result = await db.execute(select(models.Book).where(models.Book.book_id == book_id, models.Book.user_id == user_id))
-        # book = result.scalars().first()
-        # if not book:
-        #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-        await db.delete(book)
-        await db.commit()
-        return f"Book with ID {book_id} deleted successfully"
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+@router.delete("/{book_id}/delete", status_code=status.HTTP_200_OK)
+async def delete_book(book_id: UUID, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), book: models.Book= Depends(book_owner_or_admin)):
+    return await book_service.delete_book(book_id, db, current_user, book)
 
+@router.get("/{book_id}/view", status_code=status.HTTP_200_OK)
+async def get_file_view(book_id: UUID, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    result = await book_service.get_file_view(book_id, db, current_user)
+    return Response(
+        content=result["file_bytes"],
+        media_type=result["mime_type"],
+    )
+
+@router.post("/test-upload")
+async def test_upload(
+    file: UploadFile = File(...)
+):
+    response = CloudService.upload_file(file)
+
+    return {
+        "type": str(type(response)),
+        "string": str(response),
+        "dir": dir(response)
+    }

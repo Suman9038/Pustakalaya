@@ -1,3 +1,4 @@
+from uuid import UUID
 from app.models import User
 from sqlalchemy import select
 from fastapi import Depends
@@ -96,8 +97,8 @@ class RoleChecker:
         raise InsufficentPermission()
 
 class BookOwnerOrAdmin:
-    async def __call__(self, book_id:str, db:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
-        result = await db.execute(select(Book).where(Book.id == book_id))
+    async def __call__(self, book_id:UUID, db:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
+        result = await db.execute(select(Book).where(Book.book_id == book_id))
         book = result.scalar_one_or_none()
         
         if book is None:

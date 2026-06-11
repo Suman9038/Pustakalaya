@@ -28,6 +28,20 @@ class Settings(BaseSettings):
     MAIL_STARTTLS:bool = True
     MAIL_SSL_TLS:bool = False
 
+    PROJECT_ID:str
+    APPWRITE_API_KEY:str
+    APPWRITE_ENDPOINT:str
+    APPWRITE_BUCKET_ID:str
+
+    QDRANT_HOST:str
+    QDRANT_PORT:int
+    QDRANT_COLLECTION:str
+
+    GOOGLE_API_KEY:str
+    HUGGINGFACEHUB_ACCESS_TOKEN:str
+    OPENROUTER_API_KEY:str
+    GROQ_API_KEY:str
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         extra="ignore"

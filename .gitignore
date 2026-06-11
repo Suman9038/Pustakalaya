@@ -171,3 +171,4 @@ poetry.toml
 pyrightconfig.json
 
 settings.json
+stitch_prompt.md

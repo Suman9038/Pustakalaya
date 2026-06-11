@@ -1,7 +1,9 @@
 from celery import Celery
 from app.config import settings
 from app.mail import MailService
+from app.rag.indexing import IndexingService
 from asgiref.sync import async_to_sync
+from uuid import UUID
 
 
 celery_app = Celery(
@@ -31,4 +33,13 @@ def send_password_reset_email_task(username:str,email:str,reset_url:str):
         username=username,
         to_email=email,
         reset_url=reset_url
+    )
+
+@celery_app.task()
+def index_book_task(book_id:str,file_id:str,title:str):
+    service = IndexingService()
+    service.index_book(
+        book_id=UUID(book_id),
+        file_id=file_id,
+        title=title
     )

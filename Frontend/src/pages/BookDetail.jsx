@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, FileText, Download, MessageSquare, Edit2, Trash2 } from 'lucide-react';
+import { Calendar, FileText, Download, MessageSquare, Edit2, Trash2, Sparkles, Headphones, Play, Pause, Loader2, BookOpen } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Badge, { FileTypeBadge } from '../components/ui/Badge';
 import ReviewCard from '../components/ui/ReviewCard';
@@ -19,9 +19,24 @@ export default function BookDetail() {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [generatingInsight, setGeneratingInsight] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [openingBook, setOpeningBook] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLang, setAudioLang] = useState(null);
+
   const { user, isAdmin } = useAuthStore();
   const navigate = useNavigate();
   const toast = useToast();
+
+  useEffect(() => {
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
+  }, [currentAudio]);
 
   useEffect(() => {
     fetchBook();
@@ -83,6 +98,73 @@ export default function BookDetail() {
     }
   };
 
+  const generateInsight = async () => {
+    try {
+      setGeneratingInsight(true);
+      const res = await api.get(`/books/${bookId}/ai-insight`);
+      setBook(prev => ({
+        ...prev,
+        summary: res.data.summary,
+        key_takeaways: res.data.key_takeaways
+      }));
+      toast.success('AI Insight generated successfully');
+    } catch (err) {
+      toast.error('Failed to generate insight');
+    } finally {
+      setGeneratingInsight(false);
+    }
+  };
+
+  const playPodcast = async (lang) => {
+    if (currentAudio) {
+      currentAudio.pause();
+      setCurrentAudio(null);
+      setIsPlaying(false);
+      if (audioLang === lang) {
+        setAudioLang(null);
+        return; // act as a toggle off
+      }
+    }
+
+    try {
+      setGeneratingAudio(true);
+      setAudioLang(lang);
+      const res = await api.post(`/books/${bookId}/ai-podcast/${lang}`);
+      const audioUrl = res.data.audio_url;
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        setIsPlaying(false);
+        setAudioLang(null);
+      };
+
+      setCurrentAudio(audio);
+      audio.play();
+      setIsPlaying(true);
+    } catch (err) {
+      toast.error('Failed to play podcast');
+      setAudioLang(null);
+    } finally {
+      setGeneratingAudio(false);
+    }
+  };
+
+  const handleReadBook = async () => {
+    try {
+      setOpeningBook(true);
+      const res = await api.get(`/books/${bookId}/view`, {
+        responseType: 'blob'
+      });
+      const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+    } catch (err) {
+      toast.error('Failed to open book');
+    } finally {
+      setOpeningBook(false);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -138,15 +220,15 @@ export default function BookDetail() {
                 >
                   <MessageSquare size={18} /> Chat with Book
                 </Link>
-                <a
-                  href={`http://localhost:8000/books/${bookId}/view`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-sans font-medium transition-all"
+                <button
+                  onClick={handleReadBook}
+                  disabled={openingBook}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-sans font-medium transition-all disabled:opacity-50"
                   style={{ background: 'var(--color-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-1)' }}
                 >
-                  <Download size={18} /> Download
-                </a>
+                  {openingBook ? <Loader2 className="animate-spin" size={18} /> : <BookOpen size={18} />}
+                  {openingBook ? 'Opening...' : 'Read Book'}
+                </button>
                 
                 {isOwnerOrAdmin && (
                   <div className="flex gap-3">
@@ -170,6 +252,87 @@ export default function BookDetail() {
                 <h2 className="font-display text-2xl mb-4 text-[color:var(--color-text-1)]">Description</h2>
                 <div className="p-6 rounded-xl font-sans text-sm leading-relaxed" style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-2)' }}>
                   {book.description || 'No description available for this book.'}
+                </div>
+              </section>
+
+              {/* AI Insights Section */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display text-2xl text-[color:var(--color-text-1)] flex items-center gap-2">
+                    <Sparkles size={24} className="text-[color:var(--color-amber)]" /> AI Insights
+                  </h2>
+                </div>
+                
+                <div className="p-6 rounded-xl font-sans relative overflow-hidden" style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)' }}>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[color:var(--color-amber)] opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  
+                  {!book.summary ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
+                        <Sparkles size={28} />
+                      </div>
+                      <h3 className="text-lg font-medium text-[color:var(--color-text-1)] mb-2">Unlock Smart Summary</h3>
+                      <p className="text-[color:var(--color-text-3)] text-sm mb-6 max-w-sm mx-auto">Generate an AI-powered summary and key takeaways for this book instantly.</p>
+                      <button
+                        onClick={generateInsight}
+                        disabled={generatingInsight}
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all"
+                        style={{ background: 'var(--color-amber)', color: 'var(--color-void)' }}
+                      >
+                        {generatingInsight ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                        {generatingInsight ? 'Generating...' : 'Generate AI Summary'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() => playPodcast('english')}
+                          disabled={generatingAudio && audioLang !== 'english'}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                          style={{ 
+                            background: isPlaying && audioLang === 'english' ? 'var(--color-amber)' : 'var(--color-amber-ghost)', 
+                            color: isPlaying && audioLang === 'english' ? 'var(--color-void)' : 'var(--color-amber)' 
+                          }}
+                        >
+                          {generatingAudio && audioLang === 'english' ? <Loader2 size={16} className="animate-spin" /> : (isPlaying && audioLang === 'english' ? <Pause size={16} /> : <Play size={16} />)}
+                          English Podcast
+                        </button>
+                        <button
+                          onClick={() => playPodcast('hindi')}
+                          disabled={generatingAudio && audioLang !== 'hindi'}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                          style={{ 
+                            background: isPlaying && audioLang === 'hindi' ? 'var(--color-amber)' : 'var(--color-elevated)', 
+                            color: isPlaying && audioLang === 'hindi' ? 'var(--color-void)' : 'var(--color-text-1)',
+                            border: isPlaying && audioLang === 'hindi' ? 'none' : '1px solid var(--border-subtle)'
+                          }}
+                        >
+                          {generatingAudio && audioLang === 'hindi' ? <Loader2 size={16} className="animate-spin" /> : (isPlaying && audioLang === 'hindi' ? <Pause size={16} /> : <Play size={16} />)}
+                          Hindi Podcast
+                        </button>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-semibold text-[color:var(--color-text-1)] mb-2">Summary</h4>
+                        <p className="text-sm leading-relaxed text-[color:var(--color-text-2)]">{book.summary}</p>
+                      </div>
+
+                      {book.key_takeaways && book.key_takeaways.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-[color:var(--color-text-1)] mb-3">Key Takeaways</h4>
+                          <ul className="space-y-2">
+                            {book.key_takeaways.map((takeaway, idx) => (
+                              <li key={idx} className="flex gap-3 text-sm text-[color:var(--color-text-2)]">
+                                <span style={{ color: 'var(--color-amber)' }}>•</span>
+                                <span>{takeaway}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </section>
 

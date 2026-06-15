@@ -1,5 +1,6 @@
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, UUID, ForeignKey,Boolean, CheckConstraint, Float, UniqueConstraint, BigInteger,Index,Text
+from sqlalchemy import (Column,
+ Integer, String, DateTime, UUID, ForeignKey,Boolean, CheckConstraint, Float, UniqueConstraint, BigInteger,Index,Text,JSON)
 from .database import Base
 import uuid
 from enum import Enum
@@ -19,6 +20,11 @@ class Book(Base):
     publisher_date = Column(DateTime, nullable=False)
     language = Column(String, nullable=False)
     number_of_pages = Column(Integer, nullable=False)
+    summary = Column(Text, nullable=True)
+    key_takeaways = Column(JSON, nullable=True)
+    podcast_url_en = Column(String, nullable=True)
+    podcast_url_hi = Column(String, nullable=True)
+    podcast_generated_at = Column(DateTime(timezone=True), nullable=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     user = relationship("User", back_populates="books")
     reviews = relationship("Review", back_populates="book", lazy="selectin",cascade="all, delete-orphan",passive_deletes=True   )

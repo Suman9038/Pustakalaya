@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Sparkles, MessageSquare, Star } from 'lucide-react';
-import { gsap } from '../lib/gsap';
+import { gsap, ScrollTrigger } from '../lib/gsap';
 import Navbar from '../components/layout/Navbar';
 import CursorSpotlight from '../components/ui/CursorSpotlight';
 import ShadowWaveBackground from '../components/ui/ShadowWaveBackground';
@@ -29,23 +29,83 @@ export default function Landing() {
       .fromTo('.hero-scroll-hint', { opacity: 0 }, { opacity: 1, duration: 0.4 }, '-=0.1');
 
     // Scroll Reveal for Features
-    gsap.fromTo(
-      '.reveal-up',
-      { opacity: 0, y: 48 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.75,
-        ease: 'power3.out',
-        stagger: 0.1,
+    gsap.utils.toArray('.reveal-up').forEach((elem, i) => {
+      gsap.fromTo(
+        elem,
+        { opacity: 0, y: 80, rotateX: -15, scale: 0.95 },
+        {
+          opacity: 1,
+          y: 0,
+          rotateX: 0,
+          scale: 1,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: elem,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+    });
+
+    // Parallax elements
+    gsap.utils.toArray('.parallax').forEach(layer => {
+      const speed = layer.getAttribute('data-speed') || 1;
+      gsap.to(layer, {
+        y: () => (ScrollTrigger.maxScroll(window) * speed * 0.1),
+        ease: 'none',
         scrollTrigger: {
-          trigger: '.features-grid',
-          start: 'top 85%',
-          toggleActions: 'play none none none',
-        },
-      }
-    );
+          trigger: 'body',
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1
+        }
+      });
+    });
+
+    // Floating orbs
+    gsap.to('.floating-orb', {
+      y: 'random(-20, 20)',
+      x: 'random(-20, 20)',
+      rotation: 'random(-15, 15)',
+      duration: 'random(3, 5)',
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut',
+      stagger: 0.2
+    });
   }, []);
+
+  const handleCardMouseMove = (e) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    const rotateX = ((y - centerY) / centerY) * -5;
+    const rotateY = ((x - centerX) / centerX) * 5;
+
+    gsap.to(card, {
+      rotateX,
+      rotateY,
+      duration: 0.5,
+      ease: 'power2.out',
+      transformPerspective: 1000
+    });
+  };
+
+  const handleCardMouseLeave = (e) => {
+    gsap.to(e.currentTarget, {
+      rotateX: 0,
+      rotateY: 0,
+      duration: 0.5,
+      ease: 'power2.out'
+    });
+  };
 
   return (
     <>
@@ -60,7 +120,12 @@ export default function Landing() {
           style={{ paddingTop: '80px' }}
         >
           <ShadowWaveBackground />
-          <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
+          
+          {/* Floating Background Orbs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full floating-orb mix-blend-screen pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(40px)' }} />
+          <div className="absolute bottom-1/3 right-1/4 w-96 h-96 rounded-full floating-orb mix-blend-screen pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.1) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }} />
+
+          <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center parallax" data-speed="0.5">
             <span
               className="hero-eyebrow font-sans text-sm tracking-[0.2em] uppercase mb-6"
               style={{ color: 'var(--color-text-2)' }}
@@ -159,9 +224,11 @@ export default function Landing() {
               {/* Feature 1 - 5 cols */}
               <div
                 className="reveal-up md:col-span-5 p-8 rounded-2xl relative overflow-hidden group"
-                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)' }}
+                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)', transformStyle: 'preserve-3d' }}
+                onMouseMove={handleCardMouseMove}
+                onMouseLeave={handleCardMouseLeave}
               >
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none transition-opacity duration-500 group-hover:opacity-10" />
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
                   <BookOpen size={28} />
                 </div>
@@ -174,9 +241,11 @@ export default function Landing() {
               {/* Feature 2 - 4 cols */}
               <div
                 className="reveal-up md:col-span-4 p-8 rounded-2xl relative overflow-hidden group"
-                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)' }}
+                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)', transformStyle: 'preserve-3d' }}
+                onMouseMove={handleCardMouseMove}
+                onMouseLeave={handleCardMouseLeave}
               >
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none transition-opacity duration-500 group-hover:opacity-10" />
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
                   <MessageSquare size={28} />
                 </div>
@@ -189,9 +258,11 @@ export default function Landing() {
               {/* Feature 3 - 3 cols */}
               <div
                 className="reveal-up md:col-span-3 p-8 rounded-2xl relative overflow-hidden group"
-                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)' }}
+                style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)', transformStyle: 'preserve-3d' }}
+                onMouseMove={handleCardMouseMove}
+                onMouseLeave={handleCardMouseLeave}
               >
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none transition-opacity duration-500 group-hover:opacity-10" />
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
                   <Star size={28} />
                 </div>

@@ -14,6 +14,8 @@ from uuid import UUID
 from app.books_service import BookService
 from fastapi.responses import Response
 from app.cloud_service import CloudService
+from app.ai.ai_service import AIService
+from app.ai.ai_schema import AIInsightResponse
 
 router = APIRouter(prefix="/books", tags=["Books Route"])
 access_token_bearer = AccessTokenBearer()
@@ -21,6 +23,7 @@ allow_admin = RoleChecker([UserRole.ADMIN])
 allow_admin_or_user = RoleChecker([UserRole.ADMIN, UserRole.USER])
 book_owner_or_admin = BookOwnerOrAdmin()
 book_service = BookService()
+ai_service = AIService()
 
 @router.get("/",response_model=List[schemas.BookSchema], status_code=status.HTTP_200_OK)
 async def get_all_books(db: AsyncSession = Depends(get_db), current_user: models.User= Depends(access_token_bearer), _:bool= Depends(allow_admin_or_user)):
@@ -61,6 +64,14 @@ async def get_file_view(book_id: UUID, db: AsyncSession = Depends(get_db), curre
         content=result["file_bytes"],
         media_type=result["mime_type"],
     )
+
+@router.get("/{book_id}/ai-insight", response_model=AIInsightResponse)
+async def get_ai_insight(book_id: UUID, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    return await ai_service.get_ai_insights(book_id, db, current_user)
+
+@router.post("/{book_id}/ai-podcast/{lang}")
+async def get_ai_podcast(book_id: UUID, lang:str, db: AsyncSession = Depends(get_db), current_user:models.User = Depends(get_current_user), _:bool= Depends(allow_admin_or_user)):
+    return await ai_service.generate_summary_podcast(book_id, db, lang, current_user)
 
 @router.post("/test-upload")
 async def test_upload(

@@ -173,3 +173,4 @@ pyrightconfig.json
 settings.json
 stitch_prompt.md
 .vite
+.env.docker

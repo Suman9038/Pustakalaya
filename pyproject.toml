@@ -42,6 +42,7 @@ dependencies = [
     "sentence-transformers (>=5.5.1,<6.0.0)",
     "langchain-classic (>=1.0.7,<2.0.0)",
     "langchain-groq (>=1.1.2,<2.0.0)",
+    "deep-translator (>=1.11.4,<2.0.0)",
 ]
 
 

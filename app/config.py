@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     GROQ_API_KEY:str
     CVOICE_API_KEY:str
 
+    QDRANT_URL: str | None = None
+    QDRANT_CLOUD_API: str | None = None
+    
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         extra="ignore"

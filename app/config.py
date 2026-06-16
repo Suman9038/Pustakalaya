@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    LOCAL_DATABASE_URL:str
     ALEMBIC_DATABASE_URL: str
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str
@@ -15,10 +16,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379   
+    REDIS_URL:str
+    LOCAL_REDIS_URL:str
     RESEND_API_KEY:str
     # EMAIL_FROM:str
     VERIFICATION_URL:str
-    REDIS_URL:str
     MAIL_USERNAME:str
     MAIL_PASSWORD:str
     MAIL_FROM:str
@@ -43,8 +45,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY:str
     CVOICE_API_KEY:str
 
-    QDRANT_URL: str | None = None
-    QDRANT_CLOUD_API: str | None = None
+    # QDRANT_URL: str | None = None
+    # QDRANT_CLOUD_API: str | None = None
     
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

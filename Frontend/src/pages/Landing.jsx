@@ -271,6 +271,25 @@ export default function Landing() {
                   Rate books, write reviews, and see what others in the community are reading.
                 </p>
               </div>
+
+              {/* Feature 4 - Full Width for AI Insights */}
+              <div
+                className="reveal-up md:col-span-12 p-8 rounded-2xl relative overflow-hidden group flex flex-col md:flex-row items-start md:items-center gap-8 mt-4"
+                style={{ background: 'linear-gradient(145deg, var(--color-card), rgba(212, 160, 83, 0.05))', border: '1px solid var(--border-subtle)', transformStyle: 'preserve-3d' }}
+                onMouseMove={handleCardMouseMove}
+                onMouseLeave={handleCardMouseLeave}
+              >
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/%3E%3C/svg%3E')] opacity-5 mix-blend-overlay pointer-events-none transition-opacity duration-500 group-hover:opacity-10" />
+                <div className="w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-[0_0_20px_rgba(245,158,11,0.2)]" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
+                  <Sparkles size={32} />
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl mb-3" style={{ color: 'var(--color-text-1)' }}>Deep AI Insights</h3>
+                  <p className="font-sans text-base max-w-3xl" style={{ color: 'var(--color-text-2)', lineHeight: 1.6 }}>
+                    Unlock the hidden knowledge within your books. Our advanced RAG pipeline automatically generates comprehensive summaries, extracts key concepts, and highlights critical information, transforming how you digest large volumes of text.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -278,7 +297,7 @@ export default function Landing() {
         {/* FOOTER */}
         <footer className="py-8 text-center" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <p className="font-sans text-sm" style={{ color: 'var(--color-text-3)' }}>
-            Pustakalaya © 2025. All rights reserved.
+            Pustakalaya © 2026. All rights reserved.
           </p>
         </footer>
       </main>

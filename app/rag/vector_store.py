@@ -8,16 +8,20 @@ from app.config import settings
 
 class QdrantService:
     def __init__(self):
-        if hasattr(settings, "QDRANT_CLOUD_API") and settings.QDRANT_CLOUD_API:
-            self.client = QdrantClient(
-                url=settings.QDRANT_URL,
-                api_key=settings.QDRANT_CLOUD_API
-            )
-        else:
-            self.client = QdrantClient(
-                host=settings.QDRANT_HOST,
-                port=settings.QDRANT_PORT
-            )
+        # if hasattr(settings, "QDRANT_CLOUD_API") and settings.QDRANT_CLOUD_API:
+        #     self.client = QdrantClient(
+        #         url=settings.QDRANT_URL,
+        #         api_key=settings.QDRANT_CLOUD_API
+        #     )
+        # else:
+        #     self.client = QdrantClient(
+        #         host=settings.QDRANT_HOST,
+        #         port=settings.QDRANT_PORT
+        #     )
+        self.client= QdrantClient(
+            host=settings.QDRANT_HOST,
+            port=settings.QDRANT_PORT
+        )
         self.embeddings = GetEmbeddingModels().get_hf_embedding_models()
         self.collection_name= settings.QDRANT_COLLECTION
 

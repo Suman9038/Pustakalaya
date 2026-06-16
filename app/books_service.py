@@ -10,6 +10,7 @@ from app.errors import (
 )
 from app.cloud_service import CloudService
 from app.celery_client import index_book_task
+from app.rag.vector_store import QdrantService
 
 MAX_FILE_SIZE = 50 * 1024 * 1024 # 50MB in Bytes
 
@@ -90,7 +91,7 @@ class BookService:
             await db.rollback()
             if uploaded_file:
                 try:
-                    CloudService.delete_file(uploaded_file.get('$id'))
+                    CloudService.delete_file(uploaded_file.get('file_id'))
                 except HTTPException:
                     pass
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create Book:{str(e)}")
@@ -219,6 +220,14 @@ class BookService:
             file_id = book.file_id
             if file_id:
                 CloudService.delete_file(file_id)
+            
+            # Delete vectors from Qdrant cluster
+            try:
+                QdrantService().delete_book_vectors(book_id)
+            except Exception as e:
+                # We can log this, but we shouldn't stop the DB deletion if Qdrant is temporarily down
+                print(f"Failed to delete book vectors from Qdrant: {str(e)}")
+
             await db.delete(book)
             await db.commit()
             return {"message": "Book deleted successfully"}

@@ -249,9 +249,18 @@ export default function BookDetail() {
             {/* Left Col: Description & Extracted Text Sample */}
             <div className="lg:col-span-2 space-y-8">
               <section>
-                <h2 className="font-display text-2xl mb-4 text-[color:var(--color-text-1)]">Description</h2>
-                <div className="p-6 rounded-xl font-sans text-sm leading-relaxed" style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-2)' }}>
-                  {book.description || 'No description available for this book.'}
+                <h2 className="font-display text-2xl mb-4 text-[color:var(--color-text-1)]">Publishing Details</h2>
+                <div className="p-6 rounded-xl font-sans flex flex-col sm:flex-row gap-6" style={{ background: 'var(--color-card)', border: '1px solid var(--border-subtle)' }}>
+                  <div className="flex-1">
+                    <h4 className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-3)' }}>Publisher</h4>
+                    <p className="text-base font-medium" style={{ color: 'var(--color-text-1)' }}>{book.publisher || 'Unknown'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-3)' }}>Publication Date</h4>
+                    <p className="text-base font-medium" style={{ color: 'var(--color-text-1)' }}>
+                      {book.publisher_date ? new Date(book.publisher_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}
+                    </p>
+                  </div>
                 </div>
               </section>
 

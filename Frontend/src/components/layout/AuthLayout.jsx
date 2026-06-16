@@ -1,4 +1,5 @@
 import ShadowWaveBackground from '../ui/ShadowWaveBackground';
+import { BookOpen, MessageSquare, Star } from 'lucide-react';
 
 // Split-panel layout for Login / Signup pages
 export default function AuthLayout({ children, title, subtitle }) {
@@ -44,25 +45,35 @@ export default function AuthLayout({ children, title, subtitle }) {
           {/* Feature list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
             {[
-              '📚 Upload PDF, DOCX, EPUB books',
-              '🤖 Chat with any book using AI',
-              '⭐ Review and discover books',
-            ].map((feat) => (
+              { icon: <BookOpen size={18} style={{ color: 'var(--color-amber)' }} />, text: 'Upload PDF, DOCX, EPUB books' },
+              { icon: <MessageSquare size={18} style={{ color: 'var(--color-amber)' }} />, text: 'Chat with any book using AI' },
+              { icon: <Star size={18} style={{ color: 'var(--color-amber)' }} />, text: 'Review and discover books' },
+            ].map((feat, i) => (
               <div
-                key={feat}
-                className="font-sans text-sm"
+                key={i}
+                className="font-sans text-sm flex items-center gap-3 text-[color:var(--color-text-1)] transition-all duration-300"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: 'var(--color-text-2)',
-                  background: 'var(--color-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
+                  background: 'rgba(212, 160, 83, 0.04)',
+                  border: '1px solid rgba(212, 160, 83, 0.15)',
+                  borderRadius: '12px',
+                  padding: '14px 18px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  cursor: 'default',
+                }}
+                onMouseEnter={(e) => {
+                   e.currentTarget.style.transform = 'translateY(-2px)';
+                   e.currentTarget.style.boxShadow = '0 8px 25px rgba(212, 160, 83, 0.2)';
+                   e.currentTarget.style.borderColor = 'rgba(212, 160, 83, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                   e.currentTarget.style.transform = 'translateY(0)';
+                   e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+                   e.currentTarget.style.borderColor = 'rgba(212, 160, 83, 0.15)';
                 }}
               >
-                {feat}
+                {feat.icon}
+                <span style={{ fontWeight: 500, letterSpacing: '0.2px' }}>{feat.text}</span>
               </div>
             ))}
           </div>

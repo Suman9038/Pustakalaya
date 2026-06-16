@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import FileUploadZone from '../components/ui/FileUploadZone';
+import UploadProgress from '../components/ui/UploadProgress';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 
@@ -10,7 +11,8 @@ export default function UploadBook() {
   const [formData, setFormData] = useState({
     title: '',
     author: '',
-    description: '',
+    publisher: '',
+    publisher_date: '',
     language: 'English',
     number_of_pages: '',
   });
@@ -31,9 +33,10 @@ export default function UploadBook() {
     data.append('file', file);
     data.append('title', formData.title);
     data.append('author', formData.author);
-    data.append('description', formData.description);
+    data.append('publisher', formData.publisher);
+    data.append('publisher_date', formData.publisher_date);
     data.append('language', formData.language);
-    if (formData.number_of_pages) data.append('number_of_pages', formData.number_of_pages);
+    data.append('number_of_pages', formData.number_of_pages || 0);
 
     try {
       setUploading(true);
@@ -52,6 +55,7 @@ export default function UploadBook() {
   return (
     <>
       <Navbar />
+      <UploadProgress isUploading={uploading} />
       <main className="min-h-screen pt-24 pb-12 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8">
@@ -99,19 +103,35 @@ export default function UploadBook() {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-sans text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-2)' }}>Description *</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  required
-                  rows={4}
-                  className="w-full font-sans text-sm outline-none rounded-lg resize-none"
-                  style={{ background: 'var(--color-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-1)', padding: '12px' }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-amber)'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block font-sans text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-2)' }}>Publisher *</label>
+                  <input
+                    type="text"
+                    name="publisher"
+                    value={formData.publisher}
+                    onChange={handleChange}
+                    required
+                    className="w-full font-sans text-sm outline-none rounded-lg"
+                    style={{ background: 'var(--color-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-1)', padding: '12px' }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-amber)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                  />
+                </div>
+                <div>
+                  <label className="block font-sans text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-2)' }}>Publication Date *</label>
+                  <input
+                    type="date"
+                    name="publisher_date"
+                    value={formData.publisher_date}
+                    onChange={handleChange}
+                    required
+                    className="w-full font-sans text-sm outline-none rounded-lg"
+                    style={{ background: 'var(--color-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--color-text-1)', padding: '12px' }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-amber)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -148,11 +168,10 @@ export default function UploadBook() {
               <button
                 type="submit"
                 disabled={uploading}
-                className="font-sans font-medium text-base px-8 py-3 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                className="font-sans font-medium text-base px-8 py-3 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.5)] hover:-translate-y-0.5"
                 style={{ background: 'var(--color-amber)', color: 'var(--color-void)' }}
               >
-                {uploading && <div className="w-4 h-4 border-2 border-[color:var(--color-void)] border-t-transparent rounded-full animate-spin" />}
-                {uploading ? 'Uploading & Processing...' : 'Upload Book'}
+                Upload Book
               </button>
             </div>
           </form>

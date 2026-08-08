@@ -16,25 +16,21 @@ from app.admin_dashboard.dashboard_routes import router as dashboard_routes
 # Start ke time par database connection test, table creation,
 # model loading, etc. kiya ja sakta hai.
 # Stop ke time par cleanup operations kiye ja sakte hain.
+import subprocess
+
 @asynccontextmanager
 async def life_span(app: FastAPI):
-    # print("Server is Starting...")
-    # # Yahan par startup codSe likkha ja skta hai 
-    # # Jaise ki database connection test karna, tables create karna, 
-    # # models ko load karna, etc. 
-    # # Toh maina database connection ka likha hai
-    # print("Starting database connection....")
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
-    # yield
-    # print("Closing all connections....")
-    # # Database session ko clean up karne ke liye
-    # await engine.dispose()
-    # print("Server has been Stopped..")
+    print("Starting Celery worker in background...")
+    celery_process = subprocess.Popen(["celery", "-A", "app.celery_client", "worker", "-P", "solo", "-l", "info"])
+
     qdrant = QdrantService()
     qdrant.create_collection()
     yield                              
     await engine.dispose() 
+    
+    if celery_process:
+        print("Stopping Celery worker...")
+        celery_process.terminate()
 
 
 

@@ -4,7 +4,7 @@ from app.config import settings
 
 JTI_EXPIRY = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
-redis_client= redis.from_url(settings.LOCAL_REDIS_URL, decode_responses=True)
+redis_client= redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
 async def add_token_jti_to_blocklist(jwt_id:str):

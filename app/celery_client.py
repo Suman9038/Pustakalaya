@@ -8,8 +8,8 @@ from uuid import UUID
 
 celery_app = Celery(
     "pustakalaya",
-    broker=settings.LOCAL_REDIS_URL,
-    backend=settings.LOCAL_REDIS_URL
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL
 )
 
 @celery_app.task()

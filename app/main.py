@@ -20,11 +20,22 @@ import subprocess
 
 @asynccontextmanager
 async def life_span(app: FastAPI):
+    import threading
     print("Starting Celery worker in background...")
     celery_process = subprocess.Popen(["celery", "-A", "app.celery_client", "worker", "-P", "solo", "-l", "info"])
 
-    qdrant = QdrantService()
-    qdrant.create_collection()
+    def init_qdrant():
+        try:
+            print("Initializing Qdrant...")
+            qdrant = QdrantService()
+            qdrant.create_collection()
+            print("Qdrant initialized.")
+        except Exception as e:
+            print(f"Qdrant initialization failed: {e}")
+
+    # Run in background to prevent blocking Uvicorn startup (Render port timeout)
+    threading.Thread(target=init_qdrant, daemon=True).start()
+
     yield                              
     await engine.dispose() 
     

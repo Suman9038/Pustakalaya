@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str
-    LOCAL_DATABASE_URL:str
+    LOCAL_DATABASE_URL: str | None = None
     ALEMBIC_DATABASE_URL: str
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379   
     REDIS_URL:str
-    LOCAL_REDIS_URL:str
+    LOCAL_REDIS_URL: str | None = None
     RESEND_API_KEY:str
     # EMAIL_FROM:str
     VERIFICATION_URL:str

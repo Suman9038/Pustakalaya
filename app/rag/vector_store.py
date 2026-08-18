@@ -18,9 +18,11 @@ class QdrantService:
                 host=settings.QDRANT_HOST,
                 port=settings.QDRANT_PORT
             )
-        self.embeddings = GetEmbeddingModels().get_hf_embedding_models()
         self.collection_name= settings.QDRANT_COLLECTION
 
+    @property
+    def embeddings(self):
+        return GetEmbeddingModels.get_hf_embedding_models()
     def create_collection(self):
         collection = self.client.get_collections()
 

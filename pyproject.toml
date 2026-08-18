@@ -8,9 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12 ,<4.0"
 
-[tool.poetry]
-package-mode = false
-
 dependencies = [
     "fastapi (>=0.136.1,<0.137.0)",
     "sqlalchemy (>=2.0.49,<3.0.0)",
@@ -48,6 +45,8 @@ dependencies = [
     "deep-translator (>=1.11.4,<2.0.0)",
 ]
 
+[tool.poetry]
+package-mode = false
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

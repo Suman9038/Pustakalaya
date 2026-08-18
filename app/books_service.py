@@ -100,8 +100,6 @@ class BookService:
         try :
             result = await db.execute(select(models.Book).options(selectinload(models.Book.user)).order_by(models.Book.created_at.desc()))
             books = result.scalars().all()
-            if not books:
-                raise BookNotFound()
             return [
             schemas.BookSchema(
                 book_id=book.book_id,
@@ -163,8 +161,6 @@ class BookService:
         try:
             result = await db.execute(select(models.Book).options(selectinload(models.Book.user),selectinload(models.Book.reviews).selectinload(models.Review.user)).where(models.Book.user_id == user_id).order_by(models.Book.created_at.desc()))
             books = result.scalars().all()
-            if not books:
-                raise BookNotFound()
             return [
             schemas.BookSchema(
                 book_id=book.book_id,
@@ -277,9 +273,6 @@ class BookService:
             )
 
             books = result.scalars().all()
-
-            if not books:
-                raise BookNotFound()
 
             return [
                 schemas.BookSchema(

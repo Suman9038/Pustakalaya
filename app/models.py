@@ -13,7 +13,7 @@ class UserRole(str,Enum):
 
 class Book(Base):
     __tablename__ = "books"
-    book_id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+    book_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String, nullable=False, index=True)
     author = Column(String, nullable=False, index=True)
     publisher = Column(String, nullable=False)
@@ -25,27 +25,27 @@ class Book(Base):
     podcast_url_en = Column(String, nullable=True)
     podcast_url_hi = Column(String, nullable=True)
     podcast_generated_at = Column(DateTime(timezone=True), nullable=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     user = relationship("User", back_populates="books")
-    reviews = relationship("Review", back_populates="book", lazy="selectin",cascade="all, delete-orphan",passive_deletes=True   )
+    reviews = relationship("Review", back_populates="book", lazy="selectin",cascade="all, delete-orphan",passive_deletes=True)
     file_id = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
     file_size = Column(BigInteger, nullable=True)
     mime_type = Column(String, nullable=True)
     conversations = relationship(
-    "Conversation",
-    back_populates="book",
-    cascade="all, delete-orphan"
+        "Conversation",
+        back_populates="book",
+        cascade="all, delete-orphan"
     )
-    created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), server_default=func.now())
 
     def __repr__(self):
         return f"Book(id={self.book_id}, title={self.title}, author={self.author}, publisher={self.publisher}, publisher_date={self.publisher_date}, language={self.language}, number_of_pages={self.number_of_pages})"
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String, unique=True, nullable=False, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=False)
@@ -53,23 +53,23 @@ class User(Base):
     last_name = Column(String, nullable=False)
     role = Column(SqlEnum(UserRole,values_callable=lambda obj:[e.value for e in obj], name="user_role"), default=UserRole.USER, nullable=False, server_default=UserRole.USER.value)
     is_verified = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), server_default=func.now())
     books = relationship(
-    "Book",
-    back_populates="user",
-    lazy="selectin"
+        "Book",
+        back_populates="user",
+        lazy="selectin"
     )
     reviews = relationship(
-    "Review",
-    back_populates="user",
-    lazy="selectin"
+        "Review",
+        back_populates="user",
+        lazy="selectin"
     )
     conversations = relationship(
-    "Conversation",
-    back_populates="user",
-    cascade="all, delete-orphan"
-)
+        "Conversation",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"User(id={self.id}, username={self.username}, email={self.email}, fullname={self.first_name + ' ' + self.last_name}, is_verified={self.is_verified})"
@@ -77,15 +77,15 @@ class User(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
-    id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rating = Column(Float, CheckConstraint("rating >= 1 and rating <= 5", name="valid_rating_range"), nullable=False)
     comment = Column(String(250), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="reviews")
     book_id = Column(UUID(as_uuid=True), ForeignKey("books.book_id", ondelete="CASCADE"), nullable=False)
     book = relationship("Book", back_populates="reviews")
-    created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint(
@@ -117,8 +117,8 @@ class Conversation(Base):
 
     title = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), server_default=func.now())
 
     user= relationship("User", back_populates="conversations")
     
@@ -143,15 +143,15 @@ class Message(Base):
             "conversations.id",
             ondelete="CASCADE"
         ),
-        index=True
+        nullable=False
     )
 
     role = Column(String(50), nullable=False)
 
     content = Column(Text, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), default=func.now()) 
-    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now()) 
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), server_default=func.now())
 
     conversation = relationship("Conversation", back_populates="messages")
 

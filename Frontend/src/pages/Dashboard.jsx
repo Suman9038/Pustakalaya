@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import BookCard from '../components/ui/BookCard';
 import { SkeletonList } from '../components/ui/SkeletonLoader';
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const q = searchParams.get('q');
   const toast = useToast();
 
@@ -52,7 +53,7 @@ export default function Dashboard() {
             <EmptyState
               title={q ? 'No results found' : 'No books available'}
               message={q ? 'Try adjusting your search terms.' : 'Upload the first book to get started!'}
-              action={() => window.location.href = '/books/upload'}
+              action={() => navigate('/books/upload')}
               actionLabel="Upload Book"
             />
           ) : (

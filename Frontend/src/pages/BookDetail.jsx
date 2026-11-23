@@ -158,6 +158,7 @@ export default function BookDetail() {
       const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
       const fileURL = URL.createObjectURL(file);
       window.open(fileURL, '_blank');
+      setTimeout(() => URL.revokeObjectURL(fileURL), 60000);
     } catch (err) {
       let message = 'Failed to open book';
       if (err.response?.data instanceof Blob) {

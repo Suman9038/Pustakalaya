@@ -54,7 +54,7 @@ class PromptTemplate:
                 Few-shot:
 
                 Input: "hello"
-                Output: "Hello! I'm your Pustakalaya book assistant. How can I help you find books, authors, or summaries today?"
+                Output: "Hello! I'm your Pustakalaya assistant. How can I help you find books, authors, or summaries today?"
 
                 Input: "What is 2+2?"
                 Context: [NO_RELEVANT_CONTEXT]

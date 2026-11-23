@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ConversationSidebar from '../components/chat/ConversationSidebar';
 import ChatBubble from '../components/chat/ChatBubble';
 import ChatInput from '../components/chat/ChatInput';
-import api from '../lib/api';
+import api, { BASE_URL } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../store/authStore';
 
@@ -98,8 +98,7 @@ export default function Chat() {
     setStreamPhase('connecting');
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/chat/ask/stream/${conversationId}`, {
+      const response = await fetch(`${BASE_URL}/chat/ask/stream/${conversationId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

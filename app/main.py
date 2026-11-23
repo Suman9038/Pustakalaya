@@ -29,9 +29,10 @@ async def life_span(app: FastAPI):
             print("Initializing Qdrant...")
             qdrant = QdrantService()
             qdrant.create_collection()
-            print("Qdrant initialized.")
+            print("✓ Qdrant initialized successfully.")
         except Exception as e:
-            print(f"Qdrant initialization failed: {e}")
+            print(f"✗ Qdrant initialization failed: {e}")
+            print("⚠ Application will continue without Qdrant. Books can still be managed, but RAG features may not work.")
 
     # Run in background to prevent blocking Uvicorn startup (Render port timeout)
     threading.Thread(target=init_qdrant, daemon=True).start()

@@ -104,6 +104,22 @@ async def get_chat_history(
         db=db
     )
 
+@router.get("/conversation/{conversation_id}")
+async def get_conversation(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get conversation metadata including book_id and book_title
+    """
+    return await rag_service.get_conversation_with_book(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        db=db
+    )
+
+
 @router.delete(
     "/{conversation_id}",
     status_code=status.HTTP_200_OK

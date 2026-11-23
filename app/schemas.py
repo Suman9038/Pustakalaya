@@ -13,6 +13,7 @@ class BookSchema(BaseModel):
     publisher_date: datetime
     language: str
     number_of_pages: int
+    user_id: UUID | None = None
     file_id: str | None = None
     file_name: str | None = None
     file_size: int | None = None

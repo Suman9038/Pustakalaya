@@ -60,7 +60,7 @@ def decode_jwt(token:str)-> dict:
         )
         return token_data
     except jwt.ExpiredSignatureError:
-        raise RevokedToken()
+        raise InvalidToken()
     except jwt.InvalidTokenError:
         raise InvalidToken()
 

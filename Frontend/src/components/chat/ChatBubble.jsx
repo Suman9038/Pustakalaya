@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import StreamingText from './StreamingText';
 
-export default function ChatBubble({ message, isStreaming = false }) {
+export default function ChatBubble({ message, isStreaming = false, streamPhase = 'idle' }) {
   const isUser = message.role === 'user';
 
   return (
@@ -59,14 +59,35 @@ export default function ChatBubble({ message, isStreaming = false }) {
           {isUser ? (
             <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
           ) : isStreaming ? (
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-end">
               <StreamingText streamContent={message.content} />
-              {!message.content && (
+              {streamPhase === 'connecting' && (
+                <div className="thinking-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '22px' }}>
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                </div>
+              )}
+              {streamPhase === 'thinking' && (
+                <div className="thinking-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '22px' }}>
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-3)', marginLeft: '4px' }}>Thinking…</span>
+                </div>
+              )}
+              {!message.content && streamPhase === 'streaming' && (
                 <div className="dot-pulse" style={{ display: 'flex', alignItems: 'center', height: '22px' }}>
                   <span />
                   <span />
                   <span />
                 </div>
+              )}
+              {streamPhase === 'done' && (
+                <div style={{ fontSize: '11px', color: 'var(--color-success)', marginLeft: '4px' }}>✓</div>
+              )}
+              {streamPhase === 'error' && (
+                <div style={{ fontSize: '11px', color: 'var(--color-error)', marginLeft: '4px' }}>✗</div>
               )}
             </div>
           ) : (
@@ -113,6 +134,16 @@ export default function ChatBubble({ message, isStreaming = false }) {
           padding-left: 1.5em;
           margin-bottom: 0.8em;
         }
+        .thinking-dot {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--color-amber);
+          animation: dot-pulse 1.4s ease-in-out infinite;
+        }
+        .thinking-dot:nth-child(2) { animation-delay: 0.16s; }
+        .thinking-dot:nth-child(3) { animation-delay: 0.32s; }
       `}</style>
     </div>
   );

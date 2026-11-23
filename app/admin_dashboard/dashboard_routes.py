@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -11,6 +12,7 @@ from app.admin_dashboard.dashboard_schema import (
     RecentBookResponse,
     TopUserResponse,
     TopBookResponse,
+    UpdateUserRoleRequest,
 )
 
 
@@ -69,3 +71,28 @@ async def get_top_books(
     role_checker=Depends(admin_only)
 ):
     return await dashboard_service.get_top_books(db)
+
+@router.patch("/users/{user_id}/role", response_model=RecentUserResponse)
+async def update_user_role(
+    user_id: UUID,
+    payload: UpdateUserRoleRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    role_checker = Depends(admin_only)
+):
+    return await dashboard_service.update_user_role(
+        user_id=user_id,
+        new_role=payload.role,
+        db=db,
+        current_admin=user
+    )
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    role_checker = Depends(admin_only)
+):
+    return await dashboard_service.delete_user(user_id, db, user)

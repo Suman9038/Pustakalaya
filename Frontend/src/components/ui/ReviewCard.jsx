@@ -4,7 +4,12 @@ import { useAuthStore } from '../../store/authStore';
 
 export default function ReviewCard({ review, onDelete, onEdit }) {
   const { user } = useAuthStore();
-  const isOwner = user?.username === review.user?.username;
+  const reviewUsername = review.username || review.user?.username || '';
+  const isOwner = Boolean(
+    (user?.username && reviewUsername && user.username.toLowerCase() === reviewUsername.toLowerCase()) ||
+    (user?.id && review.user_id && user.id === review.user_id)
+  );
+  const canDelete = isOwner || user?.role === 'admin';
 
   return (
     <div
@@ -40,14 +45,14 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
               fontSize: '14px',
             }}
           >
-            {review.user?.username?.[0]?.toUpperCase() || 'U'}
+            {reviewUsername ? reviewUsername[0].toUpperCase() : 'U'}
           </div>
           <div>
             <p className="font-sans font-medium text-sm" style={{ color: 'var(--color-text-1)' }}>
-              @{review.user?.username}
+              @{reviewUsername || 'Anonymous'}
             </p>
             <p className="font-sans text-xs" style={{ color: 'var(--color-text-3)' }}>
-              {new Date(review.created_at).toLocaleDateString()}
+              {review.created_at ? new Date(review.created_at).toLocaleDateString() : 'Recently'}
             </p>
           </div>
         </div>
@@ -58,38 +63,42 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
         {review.comment}
       </p>
 
-      {isOwner && (
+      {canDelete && (
         <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => onEdit(review)}
-            className="cursor-pointer transition-colors"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-text-3)',
-              padding: '4px',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-amber)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-3)')}
-            aria-label="Edit review"
-          >
-            <Edit2 size={16} />
-          </button>
-          <button
-            onClick={() => onDelete(review.id)}
-            className="cursor-pointer transition-colors"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-text-3)',
-              padding: '4px',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-3)')}
-            aria-label="Delete review"
-          >
-            <Trash2 size={16} />
-          </button>
+          {isOwner && onEdit && (
+            <button
+              onClick={() => onEdit(review)}
+              className="cursor-pointer transition-colors"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-3)',
+                padding: '4px',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-amber)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-3)')}
+              aria-label="Edit review"
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(review.id)}
+              className="cursor-pointer transition-colors"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-3)',
+                padding: '4px',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-3)')}
+              aria-label="Delete review"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       )}
     </div>

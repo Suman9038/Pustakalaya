@@ -75,8 +75,13 @@ export default function Navbar({ onSearch }) {
 
   const handleLogout = async () => {
     try {
-      await api.get('/auth/logout');
-    } catch {}
+      const refreshToken = useAuthStore.getState().refreshToken;
+      await api.post('/auth/logout', { refresh_token: refreshToken });
+    } catch {
+      try {
+        await api.get('/auth/logout');
+      } catch {}
+    }
     logout();
     navigate('/login');
     toast.success('Logged out successfully');

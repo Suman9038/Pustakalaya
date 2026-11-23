@@ -69,14 +69,43 @@ class CloudService:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
     @staticmethod 
-    def get_file_view(file_id:str):
+    def get_file_view(file_id: str):
         try:
             response = storage.get_file_view(
                 bucket_id=settings.APPWRITE_BUCKET_ID,
                 file_id=file_id
             )
+            if isinstance(response, (bytes, bytearray)):
+                return response
+            elif isinstance(response, dict):
+                logger.error(f"Appwrite returned dict instead of bytes: {response}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=response.get("message", "File not found in storage bucket")
+                )
+            elif isinstance(response, str):
+                return response.encode("utf-8")
             return response
+        except HTTPException:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            err_msg = str(e)
+            logger.error(f"Error fetching file view for {file_id}: {err_msg}")
+            if "404" in err_msg or "not found" in err_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="File not found in storage bucket"
+                )
+            # Fallback to get_file_download if get_file_view failed
+            try:
+                dl_response = storage.get_file_download(
+                    bucket_id=settings.APPWRITE_BUCKET_ID,
+                    file_id=file_id
+                )
+                if isinstance(dl_response, (bytes, bytearray)):
+                    return dl_response
+            except Exception:
+                pass
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storage error: {err_msg}")
     
         

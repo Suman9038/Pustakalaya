@@ -1,3 +1,7 @@
+import logging
+from uuid import UUID
+from fastapi import HTTPException
+from app.errors import UserNotExists
 from app.models import (
     User,
     Book,
@@ -17,9 +21,7 @@ from app.admin_dashboard.dashboard_schema import (
     DashboardResponse
 )
 
-from app.auth.dependencies import RoleChecker
-
-role_checker = RoleChecker(UserRole.ADMIN)
+logger = logging.getLogger(__name__)
 
 
 class DashboardService:
@@ -48,10 +50,99 @@ class DashboardService:
                 email=user.email,
                 username=user.username,
                 is_verified=user.is_verified,
+                role=user.role.value if hasattr(user.role, "value") else str(user.role),
                 created_at=user.created_at
             )
             for user in users
         ]
+
+    async def update_user_role(
+        self,
+        user_id: UUID,
+        new_role: UserRole,
+        db: AsyncSession,
+        current_admin: User
+    ):
+        result = await db.execute(select(User).where(User.id == user_id))
+        target_user = result.scalar_one_or_none()
+        if not target_user:
+            raise UserNotExists()
+
+        if str(target_user.id) == str(current_admin.id) and new_role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot remove your own admin privileges."
+            )
+
+        target_user.role = new_role
+        await db.commit()
+        await db.refresh(target_user)
+
+        return RecentUserResponse(
+            user_id=str(target_user.id),
+            email=target_user.email,
+            username=target_user.username,
+            is_verified=target_user.is_verified,
+            role=target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
+            created_at=target_user.created_at
+        )
+
+    async def delete_user(
+        self,
+        user_id: UUID,
+        db: AsyncSession,
+        current_admin: User
+    ):
+        result = await db.execute(select(User).where(User.id == user_id))
+        target_user = result.scalar_one_or_none()
+        if not target_user:
+            raise UserNotExists()
+
+        if str(target_user.id) == str(current_admin.id):
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot delete your own admin account."
+            )
+
+        # 1. Fetch user's books to cascade Appwrite and Qdrant cleanup
+        books_result = await db.execute(select(Book).where(Book.user_id == target_user.id))
+        user_books = books_result.scalars().all()
+
+        for book in user_books:
+            if book.file_id:
+                try:
+                    from app.cloud_service import CloudService
+                    CloudService.delete_file(book.file_id)
+                except Exception as e:
+                    logger.error(f"Failed to delete cloud file for book {book.book_id}: {e}")
+
+            try:
+                from app.rag.vector_store import QdrantService
+                QdrantService().delete_book_vectors(book.book_id)
+            except Exception as e:
+                logger.error(f"Failed to delete vectors for book {book.book_id}: {e}")
+
+            await db.delete(book)
+
+        # 2. Delete all reviews written by this user
+        user_reviews = await db.execute(select(Review).where(Review.user_id == target_user.id))
+        for review in user_reviews.scalars().all():
+            await db.delete(review)
+
+        # 3. Delete all conversations created by this user
+        user_convos = await db.execute(select(Conversation).where(Conversation.user_id == target_user.id))
+        for convo in user_convos.scalars().all():
+            await db.delete(convo)
+
+        # 4. Delete the target user
+        await db.delete(target_user)
+        await db.commit()
+
+        return {
+            "message": f"User @{target_user.username} deleted successfully",
+            "deleted_user_id": str(target_user.id),
+            "deleted_books_count": len(user_books)
+        }
     async def get_recent_books(self, db:AsyncSession,limit:int=10):
         result= await db.execute(select(Book).order_by(Book.created_at.desc()).limit(limit))
         books = result.scalars().all()

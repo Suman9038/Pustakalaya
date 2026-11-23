@@ -7,6 +7,8 @@ import { ProtectedRoute, PublicOnlyRoute, AdminRoute } from './components/layout
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import BookDetail from './pages/BookDetail';
@@ -26,6 +28,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
+          <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
+          <Route path="/reset-password" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Protected */}

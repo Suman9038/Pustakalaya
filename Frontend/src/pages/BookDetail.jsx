@@ -159,7 +159,19 @@ export default function BookDetail() {
       const fileURL = URL.createObjectURL(file);
       window.open(fileURL, '_blank');
     } catch (err) {
-      toast.error('Failed to open book');
+      let message = 'Failed to open book';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed.detail) message = parsed.detail;
+        } catch {
+          // Keep default message if not parseable JSON
+        }
+      } else if (err.response?.data?.detail) {
+        message = err.response.data.detail;
+      }
+      toast.error(message);
     } finally {
       setOpeningBook(false);
     }

@@ -1,13 +1,22 @@
-from app.models import Book,Review,User,UserRole
+from app.models import Book, Review, User, UserRole
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.reviews.reviews_schema import ReviewCreateSchema
 from sqlalchemy import select
-from app.errors import BookNotFound,AlreadyReviewed,ReviewNotFound,InsufficentPermission
-from fastapi import HTTPException,status
+from app.errors import (
+    BookNotFound,
+    AlreadyReviewed,
+    ReviewNotFound,
+    InsufficentPermission,
+    PustakalayaException
+)
+from fastapi import HTTPException, status
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ReviewService:
-    async def add_review(self, book_id:UUID, review:ReviewCreateSchema, db:AsyncSession, current_user:User):
+    async def add_review(self, book_id: UUID, review: ReviewCreateSchema, db: AsyncSession, current_user: User):
         try:
             book_obj = await db.execute(select(Book).where(Book.book_id == book_id))
             book = book_obj.scalar_one_or_none()
@@ -33,43 +42,59 @@ class ReviewService:
             await db.commit()
             await db.refresh(new_review)
             return new_review
-
+        except PustakalayaException:
+            raise
+        except HTTPException:
+            raise
         except Exception as e:
+            await db.rollback()
+            logger.error(f"Error while adding review for book {book_id}: {e}")
             raise HTTPException(
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Oops... Something went wrong while adding review {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Oops... Something went wrong while adding review",
             )
 
-    async def delete_review(self, review_id:UUID, db:AsyncSession, current_user:User):
+    async def delete_review(self, review_id: UUID, db: AsyncSession, current_user: User):
         try:
             review_obj = await db.execute(select(Review).where(Review.id == review_id))
             review = review_obj.scalar_one_or_none()
             if not review:
                 raise ReviewNotFound()
-            if review.user_id != current_user.id:
+            if current_user.role != UserRole.ADMIN and review.user_id != current_user.id:
                 raise InsufficentPermission()
             await db.delete(review)
             await db.commit()
+        except PustakalayaException:
+            raise
+        except HTTPException:
+            raise
         except Exception as e:
+            await db.rollback()
+            logger.error(f"Error while deleting review {review_id}: {e}")
             raise HTTPException(
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Oops... Something went wrong while deleting review {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Oops... Something went wrong while deleting review",
             )
     
-    async def get_review(self,review_id:UUID, db:AsyncSession, current_user:User):
+    async def get_review(self, review_id: UUID, db: AsyncSession, current_user: User):
         try:
             review_obj = await db.execute(select(Review).where(Review.id == review_id))
             review = review_obj.scalar_one_or_none()
             if not review:
                 raise ReviewNotFound()
             return review
+        except PustakalayaException:
+            raise
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.error(f"Error while getting review {review_id}: {e}")
             raise HTTPException(
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Oops... Something went wrong while getting review {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Oops... Something went wrong while getting review",
             )
     
-    async def update_review(self,review_id:UUID, review_data:ReviewCreateSchema, db:AsyncSession, current_user:User):
+    async def update_review(self, review_id: UUID, review_data: ReviewCreateSchema, db: AsyncSession, current_user: User):
         try:
             review_obj = await db.execute(select(Review).where(Review.id == review_id))
             review = review_obj.scalar_one_or_none()
@@ -85,8 +110,14 @@ class ReviewService:
             await db.commit()
             await db.refresh(review)
             return review
+        except PustakalayaException:
+            raise
+        except HTTPException:
+            raise
         except Exception as e:
+            await db.rollback()
+            logger.error(f"Error while updating review {review_id}: {e}")
             raise HTTPException(
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Oops... Something went wrong while updating review {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Oops... Something went wrong while updating review",
             )

@@ -174,3 +174,7 @@ settings.json
 stitch_prompt.md
 .vite
 .env.docker
+skills-lock.json
+.agents
+.claude
+docs

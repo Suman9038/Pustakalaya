@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.errors import (BookNotFound)
 from app.rag.chains import RagChain
 from app.models import User
@@ -54,6 +55,29 @@ class RagService:
                 detail= "Conversation Not Found"
             )
         return conversation
+
+    async def get_conversation_with_book(self, conversation_id: UUID, user_id: UUID, db: AsyncSession):
+        result = await db.execute(
+            select(Conversation)
+            .options(selectinload(Conversation.book))
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id
+            )
+        )
+        conversation = result.scalar_one_or_none()
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation Not Found"
+            )
+        return {
+            "id": conversation.id,
+            "book_id": conversation.book_id,
+            "book_title": conversation.book.title if conversation.book else None,
+            "title": conversation.title,
+            "created_at": conversation.created_at
+        }
 
     async def get_chat_history(self, conversation_id:UUID, user_id:UUID, db:AsyncSession, verify_ownership: bool = True):
         if verify_ownership:
@@ -248,7 +272,6 @@ class RagService:
                     "chat_history": chat_history
                 }
             ):
-                print(chunk)
                 if "answer" in chunk:
                     token= chunk["answer"]
                     if token:

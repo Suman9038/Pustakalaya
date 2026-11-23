@@ -34,7 +34,9 @@ class AIService:
             book.book_id
         )
 
-        docs = await retriever.ainvoke("Summarize the entire book including all important topics")
+        docs = await retriever.ainvoke(
+            f"Comprehensive summary, core themes, key takeaways, chapter outlines, and conclusions of {book.title} by {book.author}"
+        )
 
         context = "\n\n".join(
             doc.page_content
@@ -43,43 +45,42 @@ class AIService:
 
         llm = self.llm.get_fallback_router_llm()
 
-        prompt = f"""
-            You are an expert book analyst.
+        prompt = f"""You are an expert literary analyst and executive book summarizer.
+Analyze the following book excerpts from '{book.title}' by {book.author}.
 
-            Analyze the following book content.
+Generate:
+1. "summary": A coherent, engaging executive summary (strictly maximum 400 characters) synthesizing the central thesis in clear language.
+2. "key_takeaways": Exactly 5 actionable, deeply insightful key takeaways.
 
-            Return ONLY valid JSON.
+Return ONLY a valid JSON object without surrounding markdown blocks:
+{{
+    "summary": "Summary here...",
+    "key_takeaways": [
+        "Takeaway 1...",
+        "Takeaway 2...",
+        "Takeaway 3...",
+        "Takeaway 4...",
+        "Takeaway 5..."
+    ]
+}}
 
-            {{
-                "summary": "Generate a strictly Maximum 400 characters Summary for the book with simple Language",
-                "key_takeaways": [
-                    "Takeaway1 must be insightful and practical",
-                    "Takeaway2 must be insightful and practical",
-                    "Takeaway3 must be insightful and practical",
-                    "Takeaway4 must be insightful and practical",
-                    "Takeaway5 must be insightful and practical"
-                ]
-            }}
-            Book Context:
-            
-            {context}
-            """
+Book Context:
+{context}
+"""
 
         response = await llm.ainvoke(prompt)
+        content = response.content.strip()
 
-        content = response.content
+        start_idx = content.find('{')
+        end_idx = content.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            clean_json = content[start_idx:end_idx + 1]
+        else:
+            clean_json = content.replace("```json", "").replace("```", "").strip()
 
-        if "```json" in content:
-            content = (
-                content
-                .replace("```json", "")
-                .replace("```", "")
-                .strip()
-            )
-
-        insights = json.loads(content)
-        book.summary = insights["summary"]
-        book.key_takeaways = insights["key_takeaways"]
+        insights = json.loads(clean_json)
+        book.summary = str(insights.get("summary", ""))[:400]
+        book.key_takeaways = insights.get("key_takeaways", [])
 
         await db.commit()
         await db.refresh(book)

@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, BookOpen, MessageSquare, ListTodo, Star, TrendingUp, Calendar } from 'lucide-react';
+import { Users, BookOpen, MessageSquare, ListTodo, Star, TrendingUp, Calendar, ShieldCheck, ShieldAlert, Trash2 } from 'lucide-react';
 import { gsap } from '../lib/gsap';
 import api from '../lib/api';
 import Navbar from '../components/layout/Navbar';
 import { SkeletonList } from '../components/ui/SkeletonLoader';
 import EmptyState from '../components/ui/EmptyState';
+import { RoleBadge } from '../components/ui/Badge';
+import ConfirmModal from '../components/ui/ConfirmModal';
+import { useToast } from '../components/ui/Toast';
+import { useAuthStore } from '../store/authStore';
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [targetUser, setTargetUser] = useState(null);
+  const [updatingRole, setUpdatingRole] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const { user: currentAdmin } = useAuthStore();
+  const toast = useToast();
   
   const containerRef = useRef(null);
   const cardsRef = useRef([]);
@@ -59,6 +71,63 @@ export default function AdminDashboard() {
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const handleOpenRoleModal = (user) => {
+    setTargetUser(user);
+    setRoleModalOpen(true);
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!targetUser) return;
+    const newRole = targetUser.role === 'admin' ? 'user' : 'admin';
+    try {
+      setUpdatingRole(true);
+      await api.patch(`/admin/dashboard/users/${targetUser.user_id}/role`, { role: newRole });
+      toast.success(`Role updated to ${newRole.toUpperCase()} for @${targetUser.username}`);
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recent_users: prev.recent_users.map((u) =>
+            u.user_id === targetUser.user_id ? { ...u, role: newRole } : u
+          ),
+        };
+      });
+      setRoleModalOpen(false);
+      setTargetUser(null);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update user role');
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (user) => {
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      setDeletingUser(true);
+      await api.delete(`/admin/dashboard/users/${userToDelete.user_id}`);
+      toast.success(`User @${userToDelete.username} deleted with all associated data`);
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recent_users: prev.recent_users.filter((u) => u.user_id !== userToDelete.user_id),
+        };
+      });
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
   };
 
   if (loading) {
@@ -168,16 +237,64 @@ export default function AdminDashboard() {
               {recent_users.length > 0 ? (
                 <div className="space-y-4">
                   {recent_users.map(u => (
-                    <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)', gap: '12px', flexWrap: 'wrap' }}>
                       <div>
-                        <p className="font-sans font-medium text-sm" style={{ color: 'var(--color-text-1)' }}>@{u.username}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <p className="font-sans font-medium text-sm" style={{ color: 'var(--color-text-1)' }}>@{u.username}</p>
+                          <RoleBadge role={u.role || 'user'} />
+                          {u.user_id === currentAdmin?.id && (
+                            <span style={{ fontSize: '11px', color: 'var(--color-text-3)', fontStyle: 'italic' }}>(You)</span>
+                          )}
+                        </div>
                         <p className="font-sans text-xs" style={{ color: 'var(--color-text-3)' }}>{u.email}</p>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '6px', background: u.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: u.is_verified ? '#10b981' : '#f59e0b' }}>
-                          {u.is_verified ? 'Verified' : 'Pending'}
-                        </span>
-                        <p className="font-sans text-xs mt-1" style={{ color: 'var(--color-text-4)' }}>{formatDate(u.created_at)}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '6px', background: u.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: u.is_verified ? '#10b981' : '#f59e0b' }}>
+                            {u.is_verified ? 'Verified' : 'Pending'}
+                          </span>
+                          <p className="font-sans text-xs mt-1" style={{ color: 'var(--color-text-4)' }}>{formatDate(u.created_at)}</p>
+                        </div>
+                        {u.user_id !== currentAdmin?.id && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              onClick={() => handleOpenRoleModal(u)}
+                              disabled={updatingRole || deletingUser}
+                              className="cursor-pointer transition-all flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg disabled:opacity-50"
+                              style={{
+                                background: u.role === 'admin' ? 'rgba(248,113,113,0.1)' : 'var(--color-amber-ghost)',
+                                border: `1px solid ${u.role === 'admin' ? 'rgba(248,113,113,0.25)' : 'var(--border-hover)'}`,
+                                color: u.role === 'admin' ? '#f87171' : 'var(--color-amber)',
+                              }}
+                              title={u.role === 'admin' ? 'Remove admin access' : 'Make this user an administrator'}
+                            >
+                              {u.role === 'admin' ? (
+                                <>
+                                  <ShieldAlert size={14} />
+                                  <span>Demote</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShieldCheck size={14} />
+                                  <span>Make Admin</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleOpenDeleteModal(u)}
+                              disabled={updatingRole || deletingUser}
+                              className="cursor-pointer transition-all flex items-center justify-center p-1.5 rounded-lg disabled:opacity-50"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                color: '#ef4444',
+                              }}
+                              title={`Delete user @${u.username}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -276,6 +393,40 @@ export default function AdminDashboard() {
 
         </div>
       </main>
+
+      <ConfirmModal
+        isOpen={roleModalOpen}
+        title={targetUser?.role === 'admin' ? 'Remove Admin Privileges?' : 'Promote to Administrator?'}
+        message={
+          targetUser?.role === 'admin'
+            ? `Are you sure you want to demote @${targetUser?.username} to a regular user? They will lose access to the admin dashboard.`
+            : `Are you sure you want to grant Administrator privileges to @${targetUser?.username}? They will have full access to management features.`
+        }
+        confirmLabel={targetUser?.role === 'admin' ? 'Demote User' : 'Grant Admin'}
+        cancelLabel="Cancel"
+        danger={targetUser?.role === 'admin'}
+        onConfirm={handleConfirmRoleChange}
+        onCancel={() => {
+          setRoleModalOpen(false);
+          setTargetUser(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title={`Delete User @${userToDelete?.username}?`}
+        message={`Are you sure you want to permanently delete @${userToDelete?.username}? This action will permanently remove all their uploaded books, stored cloud files in Appwrite, Qdrant vector embeddings, reviews, and conversation histories.`}
+        confirmLabel={deletingUser ? 'Deleting...' : 'Delete User'}
+        cancelLabel="Cancel"
+        danger={true}
+        onConfirm={handleConfirmDeleteUser}
+        onCancel={() => {
+          if (!deletingUser) {
+            setDeleteModalOpen(false);
+            setUserToDelete(null);
+          }
+        }}
+      />
     </>
   );
 }

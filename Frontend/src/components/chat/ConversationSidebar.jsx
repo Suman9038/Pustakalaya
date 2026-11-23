@@ -20,7 +20,9 @@ export default function ConversationSidebar({
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchConversations();
+    if (bookId && bookId !== 'placeholder-id') {
+      fetchConversations();
+    }
   }, [bookId]);
 
   const fetchConversations = async () => {

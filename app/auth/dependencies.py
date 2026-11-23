@@ -33,29 +33,32 @@ class TokenBearer(HTTPBearer):
     # Overwriting the __call__ method of HTTPBearer class
     # Here we will able to access the access token and will able to work on it as well as the refresh token
     # Ye sabse important method hai Dependency use hone par ye method automatically execute hota hai
-    async def __call__(self, request: Request)-> HTTPAuthorizationCredentials | None:
+    async def __call__(self, request: Request)-> dict:
         # Extract Credentials
         creds = await super().__call__(request)
+        if not creds:
+            raise InvalidToken()
 
         token = creds.credentials
         token_data = decode_jwt(token)
 
-        if not self.token_valid(token):
+        if not token_data:
             raise InvalidToken()
 
-        if await token_in_blocklist(token_data["jwt_id"]):
+        jwt_id = token_data.get("jwt_id")
+        if jwt_id and await token_in_blocklist(jwt_id):
             raise RevokedToken()
 
         self.verify_token_data(token_data)
 
         return token_data
 
-    def token_valid(self, token:str)-> bool :
-        token_data = decode_jwt(token)
-
-        if token_data is None:
-           return False
-        return True
+    def token_valid(self, token:str)-> bool:
+        try:
+            token_data = decode_jwt(token)
+            return token_data is not None
+        except Exception:
+            return False
 
     def verify_token_data(self, token_data):
         raise NotImplementedError("Subclasses must implement this method")

@@ -1,14 +1,14 @@
 from app.auth.auth_schema import CurrentUserResponseSchema
 from app.auth.dependencies import AccessTokenBearer,get_current_user
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.auth.auth_schema import UserCreateSchema, UserResponseSchema, UserLoginSchema,TokenSchema,UserResponseSchemaWithMessage
 from app.validators import EmailValidator, PasswordValidator, UsernameValidator
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from sqlalchemy import select
 from app.models import User,UserRole
-from app.auth.utils import hash_password, create_access_token, verify_password, create_url_safe_token, verify_url_safe_token,create_password_reset_token,verify_password_reset_token
+from app.auth.utils import hash_password, create_access_token, verify_password, create_url_safe_token, verify_url_safe_token,create_password_reset_token,verify_password_reset_token, decode_jwt
 from app.config import settings
 from app.auth.dependencies import RefreshTokenBearer, RoleChecker
 from app.redis_service import add_token_jti_to_blocklist, set_email_cooldown, email_cooldown_active
@@ -92,8 +92,8 @@ async def verify_email(token:str, db:AsyncSession= Depends(get_db)):
         raise UserNotExists()
 
     if user.is_verified:
-        return{
-            "User is already verified"
+        return {
+            "message": "User is already verified"
         }
     first_name = user.first_name
     email = user.email
@@ -106,44 +106,6 @@ async def verify_email(token:str, db:AsyncSession= Depends(get_db)):
     return {
         "message": "Email verified successfully"
     }
-
-@router.post("/signup/admin", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
-async def signup(request:UserCreateSchema, db:AsyncSession = Depends(get_db)):
-    # Validate email
-    EmailValidator.validate(request.email)
-    # Validate Password
-    PasswordValidator.validate(request.password) 
-    # Validate Username
-    UsernameValidator.validate(request.username)
-    
-    print(f"Attempted signup for admin {request.email}")
-    
-    existing_user = await db.execute(select(User).where(User.email == request.email))
-    existing_user = existing_user.scalars().first()
-    if existing_user:
-        raise UserAlreadyExists()
-
-    user_data = request.model_dump()
-    new_user = User(**user_data) # "**" --> Unpacking the user_data dictionary and passing it to the User model
-    new_user.password = hash_password(user_data["password"])
-    new_user.role = UserRole.ADMIN
-    try:
-        db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
-        token = create_url_safe_token({"email":new_user.email})
-        verification_url = settings.VERIFICATION_URL.format(token=token)
-
-        send_verification_email_task.delay(
-            username=new_user.first_name,
-            email=new_user.email,
-            verification_url=verification_url
-        )
-        return new_user
-    except Exception as e:
-        await db.rollback() # if anything goes wrong we have to rollback the changes made in the database
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 @router.post("/login", response_model=TokenSchema)
 async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
@@ -210,71 +172,46 @@ async def refresh_access_token(token_details: dict = Depends(refresh_token_beare
         )
     raise InvalidToken()
 
-@router.post("/login/admin", response_model=TokenSchema)
-async def login(request: UserLoginSchema, db:AsyncSession = Depends(get_db)):
-    try:
-        # Extracting credentials from the request body
-        email = request.email
-        password = request.password
-
-        # Validating the email and password its correct or its present in db or not 
-        user = await db.execute(select(User).where(User.email == email))
-        user = user.scalars().first()
-
-        print(f"Attempting login for user {user.email}")
-
-        # If user not found raise an error
-        if not user:
-            raise UserNotExists()
-
-        # If user found check the password 
-        if not verify_password(password, user.password):
-            raise InvalidCredentials()
-
-        if not user.is_verified:
-            raise AccountNotVerified()
-
-        user_data = {
-            "id": str(user.id),
-            "email": user.email,
-            "username": user.username,
-            "role": user.role,
-            "is_verified": user.is_verified
-        }
-        access_token = create_access_token(user_data)
-        refresh_token = create_access_token(
-            user_data,
-            refresh=True,
-            expiry= timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-            )
-
-        if not access_token or not refresh_token:
-            raise TokenGenerationFailed()
-        
-        return TokenSchema(message="Login Successful", access_token=access_token, token_type="bearer", refresh_token=refresh_token)
-    except PustakalayaException:
-        raise 
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
 @router.get("/me", response_model=CurrentUserResponseSchema)
 async def get_me(user= Depends(get_current_user),_:bool = Depends(role_checker)):
     return user
 
 
+@router.post("/logout")
 @router.get("/logout")
-async def logout(token_details: dict = Depends(access_token_bearer)):
-    jwt_id = token_details["jwt_id"]
-    expiry_timestamp = token_details["exp"]
+async def logout(
+    request: Request,
+    token_details: dict = Depends(access_token_bearer)
+):
+    jwt_id = token_details.get("jwt_id")
+    expiry_timestamp = token_details.get("exp")
 
-    await add_token_jti_to_blocklist(jwt_id)
+    if jwt_id:
+        await add_token_jti_to_blocklist(jwt_id, expiry_timestamp)
+
+    # If refresh_token passed in body, revoke it as well
+    try:
+        if request.method == "POST":
+            body = await request.json()
+            refresh_token = body.get("refresh_token")
+            if refresh_token:
+                try:
+                    refresh_data = decode_jwt(refresh_token)
+                    if refresh_data and "jwt_id" in refresh_data:
+                        await add_token_jti_to_blocklist(
+                            refresh_data["jwt_id"],
+                            refresh_data.get("exp")
+                        )
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
     return JSONResponse(
         content={
             "message": "Logged Out Successfully"
         },
-        status_code= status.HTTP_200_OK
+        status_code=status.HTTP_200_OK
     )
 
 @router.post("/resend-verification")
@@ -312,7 +249,7 @@ db:AsyncSession= Depends(get_db)):
     }
 
 
-@router.post("forgot-password")
+@router.post("/forgot-password")
 async def forgot_password(request:ForgotPasswordSchema, db:AsyncSession= Depends(get_db)):
     user_result = await db.execute(select(User).where(User.email == request.email))
     user = user_result.scalar_one_or_none()
@@ -323,9 +260,15 @@ async def forgot_password(request:ForgotPasswordSchema, db:AsyncSession= Depends
     if await email_cooldown_active(user.id):
         raise EmailCooldownActive()
     
-    password_reset_url = create_password_reset_token({
-        "email":user.email
+    token = create_password_reset_token({
+        "email": user.email
     })
+
+    if "/verify-email" in settings.VERIFICATION_URL:
+        base_url = settings.VERIFICATION_URL.split("/verify-email")[0]
+        password_reset_url = f"{base_url}/reset-password?token={token}"
+    else:
+        password_reset_url = f"http://localhost:5173/reset-password?token={token}"
 
     send_password_reset_email_task.delay(
         username=user.first_name,
@@ -335,7 +278,7 @@ async def forgot_password(request:ForgotPasswordSchema, db:AsyncSession= Depends
 
     await set_email_cooldown(user.id)
 
-    return{
+    return {
         "message": "Password reset email sent successfully"
     }
 
@@ -352,16 +295,19 @@ async def reset_password(request:ResetPasswordSchema, db:AsyncSession= Depends(g
         PasswordValidator.validate(
             request.new_password
         )
-        user.password = hash_password(request.password)
+        user.password = hash_password(request.new_password)
         await db.commit()
 
-        return{
+        return {
             "message": "Password reset successful"
         }
     except PustakalayaException:
         raise 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to reset password")
 
 
 @router.get("/test-email")

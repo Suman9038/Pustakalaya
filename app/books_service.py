@@ -11,6 +11,9 @@ from app.errors import (
 from app.cloud_service import CloudService
 from app.celery_client import index_book_task
 from app.rag.vector_store import QdrantService
+import logging
+
+logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE = 50 * 1024 * 1024 # 50MB in Bytes
 
@@ -76,6 +79,7 @@ class BookService:
             publisher_date=new_book.publisher_date,
             language=new_book.language,
             number_of_pages=new_book.number_of_pages,
+            user_id=new_book.user_id,
             uploaded_by=username,
             file_id=new_book.file_id,
             file_name=new_book.file_name,
@@ -101,7 +105,7 @@ class BookService:
             result = await db.execute(select(models.Book).options(selectinload(models.Book.user)).order_by(models.Book.created_at.desc()))
             books = result.scalars().all()
             if not books:
-                raise BookNotFound()
+                return []
             return [
             schemas.BookSchema(
                 book_id=book.book_id,
@@ -111,6 +115,7 @@ class BookService:
                 publisher_date=book.publisher_date,
                 language=book.language,
                 number_of_pages=book.number_of_pages,
+                user_id=book.user_id,
                 uploaded_by=book.user.username if book.user else None,
                 file_id=book.file_id,
                 file_name=book.file_name,
@@ -140,6 +145,7 @@ class BookService:
             publisher_date=book.publisher_date,
             language=book.language,
             number_of_pages=book.number_of_pages,
+            user_id=book.user_id,
             uploaded_by=book.user.username if book.user else None,
             created_at=book.created_at,
             updated_at=book.updated_at,
@@ -148,7 +154,9 @@ class BookService:
             id=review.id,
             rating=review.rating,
             comment=review.comment,
-            username=review.user.username
+            username=review.user.username if review.user else "Anonymous",
+            user_id=review.user_id,
+            created_at=review.created_at
         )
         for review in book.reviews
     ]
@@ -164,7 +172,7 @@ class BookService:
             result = await db.execute(select(models.Book).options(selectinload(models.Book.user),selectinload(models.Book.reviews).selectinload(models.Review.user)).where(models.Book.user_id == user_id).order_by(models.Book.created_at.desc()))
             books = result.scalars().all()
             if not books:
-                raise BookNotFound()
+                return []
             return [
             schemas.BookSchema(
                 book_id=book.book_id,
@@ -174,6 +182,7 @@ class BookService:
                 publisher_date=book.publisher_date,
                 language=book.language,
                 number_of_pages=book.number_of_pages,
+                user_id=book.user_id,
                 uploaded_by=book.user.username if book.user else None,
                 created_at=book.created_at,
                 updated_at=book.updated_at
@@ -226,7 +235,7 @@ class BookService:
                 QdrantService().delete_book_vectors(book_id)
             except Exception as e:
                 # We can log this, but we shouldn't stop the DB deletion if Qdrant is temporarily down
-                print(f"Failed to delete book vectors from Qdrant: {str(e)}")
+                logger.error(f"Failed to delete book vectors from Qdrant for book {book_id}: {str(e)}")
 
             await db.delete(book)
             await db.commit()
@@ -237,7 +246,7 @@ class BookService:
             await db.rollback()
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def get_file_view(self, book_id:UUID, db:AsyncSession, current_user:models.User):
+    async def get_file_view(self, book_id: UUID, db: AsyncSession, current_user: models.User):
         try:
             result = await db.execute(select(models.Book).where(models.Book.book_id == book_id))
             book = result.scalar_one_or_none()
@@ -248,15 +257,15 @@ class BookService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="No file associated with this book."
                 )
-            file_bytes= CloudService.get_file_view(book.file_id)
-            mime_type=book.mime_type
+            file_bytes = CloudService.get_file_view(book.file_id)
+            mime_type = book.mime_type or "application/pdf"
+            file_name = book.file_name or f"{book.title}.pdf"
             return {
                 'file_bytes': file_bytes,
-                'mime_type': mime_type or "application/octet-stream"
+                'mime_type': mime_type,
+                'file_name': file_name
             }
-        except PustakalayaException:
-            raise
-        except Exception:
+        except (PustakalayaException, HTTPException):
             raise
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -279,7 +288,7 @@ class BookService:
             books = result.scalars().all()
 
             if not books:
-                raise BookNotFound()
+                return []
 
             return [
                 schemas.BookSchema(
@@ -290,6 +299,7 @@ class BookService:
                     publisher_date=book.publisher_date,
                     language=book.language,
                     number_of_pages=book.number_of_pages,
+                    user_id=book.user_id,
                     uploaded_by=book.user.username if book.user else None,
                     created_at=book.created_at,
                     updated_at=book.updated_at

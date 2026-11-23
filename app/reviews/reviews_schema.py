@@ -23,9 +23,11 @@ class ReviewResponseSchema(BaseModel):
 
 class ReviewSchemaInBook(BaseModel):
     id: UUID4
-    rating:float
-    comment:str
+    rating: float
+    comment: str
     username: str = Field(description="Username of the user who added the review")
+    user_id: UUID4 | None = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True

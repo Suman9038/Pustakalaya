@@ -65,6 +65,12 @@ Follow these strict operational rules:
    - Always ensure headers, lists, and table rows are separated with proper blank lines so they render as clean Markdown.
    - Keep answers well-structured, insightful, and directly grounded in the text.
 
+5. CLICKABLE PAGE CITATIONS:
+   - Whenever you provide facts, explanations, quotes, definitions, or chapter summaries:
+   - Cite the exact page number from the context headers ([Source: Page X]) using the syntax: [Page X] (e.g., [Page 15] or [Page 42]).
+   - Place citation tags naturally at the end of relevant points or sections.
+   - Do not invent page numbers; only cite pages that appear in the provided Context.
+
 Context:
 {context}"""
             ),

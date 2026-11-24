@@ -1,67 +1,72 @@
 /* ─── Google Fonts ─── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @import "tailwindcss";
 
 /* ─── Tailwind v4 Theme ─── */
 @theme {
   --font-display: 'Playfair Display', serif;
-  --font-sans: 'DM Sans', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
 /* ─── CSS Custom Properties ─── */
 :root {
-  /* SURFACES */
-  --color-void:        #070709;
-  --color-base:        #0d0d11;
-  --color-raised:      #13131a;
-  --color-card:        #191924;
-  --color-elevated:    #20202c;
-  --color-hover:       #282836;
-  --color-glass:       rgba(13, 13, 17, 0.72);
+  /* SURFACES (Modern Obsidian Palette) */
+  --color-void:        #09090b;
+  --color-base:        #0f0f13;
+  --color-raised:      #18181b;
+  --color-card:        rgba(24, 24, 27, 0.75);
+  --color-elevated:    #222228;
+  --color-hover:       #2c2c34;
+  --color-glass:       rgba(24, 24, 27, 0.70);
 
   /* GRAIN */
   --grain-base:        0.055;
   --grain-hover:       0.09;
 
-  /* AMBER ACCENT */
-  --color-amber:        #d4a053;
-  --color-amber-bright: #e8b86a;
-  --color-amber-dim:    #9f7530;
-  --color-amber-ghost:  rgba(212, 160, 83, 0.07);
-  --color-amber-glow:   rgba(212, 160, 83, 0.18);
-  --color-amber-flare:  rgba(212, 160, 83, 0.30);
+  /* AMBER ACCENT (Warm Amber Gold - #f59e0b) */
+  --color-amber:        #f59e0b;
+  --color-amber-bright: #fbbf24;
+  --color-amber-dim:    #b45309;
+  --color-amber-ghost:  rgba(245, 158, 11, 0.08);
+  --color-amber-glow:   rgba(245, 158, 11, 0.20);
+  --color-amber-flare:  rgba(245, 158, 11, 0.35);
+
+  /* SECONDARY ACCENT (Emerald - #10b981) */
+  --color-emerald:        #10b981;
+  --color-emerald-glow:   rgba(16, 185, 129, 0.20);
+  --color-emerald-ghost:  rgba(16, 185, 129, 0.08);
 
   /* TEXT */
-  --color-text-1:     #e8e3da;
-  --color-text-2:     #8a8590;
-  --color-text-3:     #4f4b54;
-  --color-text-amber: #d4a053;
+  --color-text-1:     #f4f4f5;
+  --color-text-2:     #a1a1aa;
+  --color-text-3:     #71717a;
+  --color-text-amber: #f59e0b;
 
   /* FUNCTIONAL */
-  --color-success: #4ade80;
+  --color-success: #10b981;
   --color-error:   #f87171;
-  --color-warning: #fbbf24;
+  --color-warning: #f59e0b;
 
   /* CHAT */
-  --color-chat-user:   rgba(40, 38, 80, 0.65);
-  --color-chat-ai:     rgba(19, 19, 26, 0.88);
-  --color-chat-border: rgba(212, 160, 83, 0.14);
+  --color-chat-user:   rgba(39, 39, 42, 0.70);
+  --color-chat-ai:     rgba(18, 18, 22, 0.90);
+  --color-chat-border: rgba(245, 158, 11, 0.16);
 
   /* BORDERS */
-  --border-subtle: rgba(255, 255, 255, 0.045);
-  --border-hover:  rgba(212, 160, 83, 0.22);
-  --border-active: rgba(212, 160, 83, 0.48);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover:  rgba(245, 158, 11, 0.28);
+  --border-active: rgba(245, 158, 11, 0.55);
 
   /* SHADOWS */
-  --shadow-card:  0 4px 30px rgba(0, 0, 0, 0.55);
-  --shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.65), 0 0 40px rgba(212, 160, 83, 0.10);
-  --shadow-modal: 0 20px 80px rgba(0, 0, 0, 0.82);
+  --shadow-card:  0 4px 30px rgba(0, 0, 0, 0.65);
+  --shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.75), 0 0 40px rgba(245, 158, 11, 0.12);
+  --shadow-modal: 0 20px 80px rgba(0, 0, 0, 0.88);
 
   /* GLASS */
   --glass-blur:   blur(24px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
 
   /* TRANSITIONS */
   --t-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);

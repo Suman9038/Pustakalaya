@@ -90,6 +90,25 @@ export default function Chat() {
     }
   };
 
+  const handleCitationClick = async (pageNum) => {
+    if (!actualBookId) {
+      toast.error('Book reference not found');
+      return;
+    }
+    try {
+      toast.info(`Opening book at Page ${pageNum}...`);
+      const res = await api.get(`/books/${actualBookId}/view`, {
+        responseType: 'blob',
+      });
+      const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(`${fileURL}#page=${pageNum}`, '_blank');
+      setTimeout(() => URL.revokeObjectURL(fileURL), 60000);
+    } catch {
+      toast.error('Failed to open book reader');
+    }
+  };
+
   const handleSend = async (content) => {
     if (!content.trim() || isStreaming) return;
 
@@ -217,13 +236,14 @@ export default function Chat() {
             ) : (
               <div className="flex flex-col flex-1">
                 {messages.map((msg) => (
-                  <ChatBubble key={msg.id} message={msg} />
+                  <ChatBubble key={msg.id} message={msg} onCitationClick={handleCitationClick} />
                 ))}
                 {isStreaming && (
                   <ChatBubble
                     message={{ role: 'assistant', content: streamingContent }}
                     isStreaming={true}
                     streamPhase={streamPhase}
+                    onCitationClick={handleCitationClick}
                   />
                 )}
               </div>

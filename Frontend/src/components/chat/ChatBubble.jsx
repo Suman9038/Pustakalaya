@@ -1,8 +1,40 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { BookOpen } from 'lucide-react';
 
-export default function ChatBubble({ message, isStreaming = false, streamPhase = 'idle' }) {
+function CitationBadge({ page, rawText, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick?.(page);
+      }}
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md text-xs font-mono font-medium transition-all group cursor-pointer align-baseline hover:scale-105 active:scale-95"
+      style={{
+        background: 'rgba(245, 158, 11, 0.12)',
+        border: '1px solid rgba(245, 158, 11, 0.35)',
+        color: 'var(--color-amber-bright)',
+        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.08)',
+      }}
+      title={`Click to open book and jump to Page ${page}`}
+    >
+      <BookOpen size={11} className="text-[color:var(--color-amber)] group-hover:rotate-6 transition-transform" />
+      <span>{rawText || `Page ${page}`}</span>
+    </button>
+  );
+}
+
+export default function ChatBubble({ message, isStreaming = false, streamPhase = 'idle', onCitationClick }) {
   const isUser = message.role === 'user';
+
+  // Process citations like [Page 15] or [Source: Page 42] into clickable markdown links
+  const formattedContent = !isUser && message.content
+    ? message.content.replace(/\[(?:Source:\s*)?Page\s*(\d+)(?:[^\]]*)\]/gi, (match, pageNum) => {
+        return `[${match}](#cite-page-${pageNum})`;
+      })
+    : message.content;
 
   return (
     <div
@@ -75,6 +107,23 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
+                    a: ({ node, href, children, ...props }) => {
+                      if (href && href.startsWith('#cite-page-')) {
+                        const pageNum = parseInt(href.replace('#cite-page-', ''), 10);
+                        return <CitationBadge page={pageNum} rawText={children} onClick={onCitationClick} />;
+                      }
+                      return (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-[color:var(--color-amber)] hover:text-[color:var(--color-amber-bright)] transition-colors"
+                          {...props}
+                        >
+                          {children}
+                        </a>
+                      );
+                    },
                     h1: ({ node, ...props }) => <h1 className="text-lg font-display font-bold text-[color:var(--color-amber)] mt-3 mb-2" {...props} />,
                     h2: ({ node, ...props }) => <h2 className="text-base font-display font-semibold text-[color:var(--color-amber)] mt-3 mb-1.5" {...props} />,
                     h3: ({ node, ...props }) => <h3 className="text-sm font-display font-semibold text-[color:var(--color-amber-bright)] mt-2 mb-1" {...props} />,
@@ -117,7 +166,7 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
                     td: ({ node, ...props }) => <td className="px-3 py-2 border-t border-[color:var(--border-subtle)]" {...props} />,
                   }}
                 >
-                  {message.content}
+                  {formattedContent}
                 </ReactMarkdown>
               )}
 

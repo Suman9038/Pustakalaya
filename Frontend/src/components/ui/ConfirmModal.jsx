@@ -11,6 +11,7 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
   danger = true,
+  loading = false,
 }) {
   const overlayRef = useRef(null);
   const cardRef = useRef(null);
@@ -114,7 +115,8 @@ export default function ConfirmModal({
           </button>
           <button
             onClick={onConfirm}
-            className="cursor-pointer font-sans text-sm px-4 py-2 rounded-lg transition-all font-medium"
+            disabled={loading}
+            className={`font-sans text-sm px-4 py-2 rounded-lg transition-all font-medium ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             style={{
               background: danger ? 'rgba(248,113,113,0.15)' : 'var(--color-amber-ghost)',
               border: `1px solid ${danger ? 'rgba(248,113,113,0.3)' : 'var(--border-hover)'}`,

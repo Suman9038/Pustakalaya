@@ -12,7 +12,7 @@ from app.auth.dependencies import (
 from app.models import UserRole
 from uuid import UUID
 from app.books_service import BookService
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from app.cloud_service import CloudService
 from app.ai.ai_service import AIService
 from app.ai.ai_schema import AIInsightResponse
@@ -133,6 +133,17 @@ async def get_file_view(
             "Accept-Ranges": "bytes",
         }
     )
+
+
+@router.get("/{book_id}/progress")
+async def get_book_index_progress(
+    book_id: UUID, 
+    current_user: models.User = Depends(get_current_user), 
+    _: bool = Depends(allow_admin_or_user)
+):
+    """Returns the latest indexing progress snapshot for a book."""
+    from app.rag.indexing_tracker import IndexingTracker
+    return await IndexingTracker.get(str(book_id))
 
 
 @router.get("/{book_id}/ai-insight", response_model=AIInsightResponse)

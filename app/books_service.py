@@ -65,11 +65,44 @@ class BookService:
             await db.commit()   
             await db.refresh(new_book)
             if new_book.file_id:
-                index_book_task.delay(
+                from app.rag.indexing_tracker import IndexingTracker
+                IndexingTracker.update(
                     book_id=str(new_book.book_id),
-                    file_id=new_book.file_id,
-                    title=new_book.title
+                    percent=10,
+                    message="File uploaded. Preparing embedding pipeline..."
                 )
+
+                # Smart dispatcher: Celery worker if active, background thread fallback otherwise
+                dispatched_to_celery = False
+                try:
+                    from app.celery_client import celery_app, index_book_task
+                    insp = celery_app.control.inspect(timeout=0.3)
+                    workers = insp.ping() if insp else None
+                    if workers:
+                        async_task = index_book_task.delay(
+                            book_id=str(new_book.book_id),
+                            file_id=new_book.file_id,
+                            title=new_book.title
+                        )
+                        dispatched_to_celery = True
+                        logger.info(f"Dispatched indexing for book {new_book.book_id} to active Celery worker (Task ID: {async_task.id}).")
+                        try:
+                            from app.redis_service import redis_client
+                            await redis_client.set(f"book_celery_task:{new_book.book_id}", async_task.id, ex=3600)
+                        except Exception as re_err:
+                            logger.debug(f"Failed to record celery task ID to redis: {re_err}")
+                except Exception as ce:
+                    logger.warning(f"Celery worker check failed: {ce}")
+
+                if not dispatched_to_celery:
+                    logger.info(f"Running indexing in background thread fallback for book {new_book.book_id}.")
+                    import threading
+                    from app.rag.indexing import IndexingService
+                    threading.Thread(
+                        target=IndexingService().index_book,
+                        args=(new_book.book_id, new_book.file_id, new_book.title),
+                        daemon=True
+                    ).start()
 
             return schemas.BookSchema(
             book_id=new_book.book_id,
@@ -224,17 +257,23 @@ class BookService:
                     pass
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def delete_book(self,book_id: UUID,db:AsyncSession,current_user:models.User, book:models.Book):
+    async def delete_book(self, book_id: UUID, db: AsyncSession, current_user: models.User, book: models.Book):
         try:
-            file_id = book.file_id
+            if not book:
+                return {"message": "Book already deleted"}
+
+            file_id = getattr(book, "file_id", None)
             if file_id:
-                CloudService.delete_file(file_id)
+                try:
+                    CloudService.delete_file(file_id)
+                except Exception as ce:
+                    logger.warning(f"Could not delete cloud file {file_id}: {ce}")
             
-            # Delete vectors from Qdrant cluster
+            # Delete vectors from Qdrant cluster (uses singleton with zero weight loading)
             try:
                 QdrantService().delete_book_vectors(book_id)
             except Exception as e:
-                # We can log this, but we shouldn't stop the DB deletion if Qdrant is temporarily down
+                # We log this, but we shouldn't stop the DB deletion if Qdrant is temporarily down
                 logger.error(f"Failed to delete book vectors from Qdrant for book {book_id}: {str(e)}")
 
             await db.delete(book)
@@ -244,6 +283,9 @@ class BookService:
             raise
         except Exception as e:
             await db.rollback()
+            err_msg = str(e).lower()
+            if "not found" in err_msg or "was not found" in err_msg or "deleted" in err_msg:
+                return {"message": "Book deleted successfully"}
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     async def get_file_view(self, book_id: UUID, db: AsyncSession, current_user: models.User):

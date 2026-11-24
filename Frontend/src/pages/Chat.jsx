@@ -21,6 +21,7 @@ export default function Chat() {
   const [streamingContent, setStreamingContent] = useState('');
   const [streamPhase, setStreamPhase] = useState('idle');
   const [isMobileOpen, setMobileOpen] = useState(false);
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
 
   const messagesEndRef = useRef(null);
 
@@ -56,6 +57,7 @@ export default function Chat() {
     try {
       setLoading(true);
       const res = await api.post(`/chat/book/${id}`);
+      setSidebarRefresh((prev) => prev + 1);
       navigate(`/chat/${res.data.id}`);
     } catch (err) {
       toast.error('Failed to start chat');
@@ -91,6 +93,7 @@ export default function Chat() {
   const handleSend = async (content) => {
     if (!content.trim() || isStreaming) return;
 
+    const isFirstMessage = messages.length === 0;
     const newMessage = { id: Date.now(), role: 'user', content, created_at: new Date().toISOString() };
     setMessages((prev) => [...prev, newMessage]);
     setIsStreaming(true);
@@ -114,37 +117,45 @@ export default function Chat() {
       let done = false;
       let finalContent = '';
       let firstTokenReceived = false;
+      let buffer = '';
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
         done = readerDone;
         if (value) {
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          // Retain any trailing partial line in buffer for the next chunk
+          buffer = lines.pop() || '';
+
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  if (!firstTokenReceived) {
-                    firstTokenReceived = true;
-                    setStreamPhase('thinking');
-                  }
-                  setStreamPhase('streaming');
-                  finalContent += parsed.content;
-                  setStreamingContent(finalContent);
-                }
-              } catch {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+            // Remove 'data:' prefix and optional single space
+            const dataStr = line.replace(/^data:\s?/, '');
+            if (dataStr === '[DONE]') break;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.content !== undefined) {
                 if (!firstTokenReceived) {
                   firstTokenReceived = true;
                   setStreamPhase('thinking');
                 }
                 setStreamPhase('streaming');
-                finalContent += data.replace(/\\n/g, '\n');
+                finalContent += parsed.content;
                 setStreamingContent(finalContent);
               }
+            } catch {
+              // Backward-compatibility fallback for raw non-JSON SSE strings
+              if (!firstTokenReceived) {
+                firstTokenReceived = true;
+                setStreamPhase('thinking');
+              }
+              setStreamPhase('streaming');
+              finalContent += dataStr.replace(/\\n/g, '\n');
+              setStreamingContent(finalContent);
             }
           }
         }
@@ -159,11 +170,12 @@ export default function Chat() {
       toast.error('Failed to get response');
       setStreamPhase('error');
     } finally {
-      setTimeout(() => {
-        setIsStreaming(false);
-        setStreamingContent('');
-        setStreamPhase('idle');
-      }, 500);
+      setIsStreaming(false);
+      setStreamingContent('');
+      setStreamPhase('idle');
+      if (isFirstMessage) {
+        setSidebarRefresh((prev) => prev + 1);
+      }
     }
   };
 
@@ -175,6 +187,7 @@ export default function Chat() {
         currentConvId={conversationId}
         isMobileOpen={isMobileOpen}
         setMobileOpen={setMobileOpen}
+        refreshTrigger={sidebarRefresh}
       />
 
       <main className="flex-1 flex flex-col relative min-w-0">

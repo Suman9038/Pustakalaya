@@ -1,3 +1,4 @@
+import json
 from langchain_core.messages import HumanMessage, AIMessage
 from app.models import Conversation, Message,Book
 from app.rag.vector_store import QdrantService
@@ -276,13 +277,14 @@ class RagService:
                     token= chunk["answer"]
                     if token:
                         full_answer+=token
-                        
-                        yield f"data: {token}\n\n"
+                        payload = json.dumps({"content": token})
+                        yield f"data: {payload}\n\n"
             
             yield "data: [DONE]\n\n"
             
         except Exception as e:
-            yield f"data: [ERROR] {str(e)}\n\n"
+            err_payload = json.dumps({"error": str(e)})
+            yield f"data: {err_payload}\n\n"
             yield "data: [DONE]\n\n"
             raise e
             

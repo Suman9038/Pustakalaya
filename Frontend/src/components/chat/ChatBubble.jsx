@@ -1,6 +1,5 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import StreamingText from './StreamingText';
 
 export default function ChatBubble({ message, isStreaming = false, streamPhase = 'idle' }) {
   const isUser = message.role === 'user';
@@ -25,7 +24,7 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
           background: isUser ? 'var(--color-chat-user)' : 'var(--color-chat-ai)',
           border: isUser ? '1px solid var(--border-subtle)' : '1px solid var(--color-chat-border)',
           borderLeft: !isUser ? '3px solid var(--color-amber)' : undefined,
-          maxWidth: '80%',
+          maxWidth: '85%',
           boxShadow: isUser ? '0 4px 20px rgba(0,0,0,0.2)' : 'none',
           overflow: 'hidden',
         }}
@@ -48,7 +47,7 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
         )}
 
         <div
-          className="font-sans text-sm chat-markdown prose prose-invert"
+          className="font-sans text-sm chat-markdown"
           style={{
             position: 'relative',
             zIndex: 1,
@@ -58,40 +57,75 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
         >
           {isUser ? (
             <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
-          ) : isStreaming ? (
-            <div className="flex gap-2 items-end">
-              <StreamingText streamContent={message.content} />
-              {streamPhase === 'connecting' && (
-                <div className="thinking-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '22px' }}>
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
+          ) : (
+            <div>
+              {/* Show clean 3-dot thinking indicator if content is empty during stream */}
+              {isStreaming && !message.content && (
+                <div className="flex items-center py-2 px-1">
+                  <div className="thinking-indicator" style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                    <span className="thinking-dot" />
+                    <span className="thinking-dot" />
+                    <span className="thinking-dot" />
+                  </div>
                 </div>
               )}
-              {streamPhase === 'thinking' && (
-                <div className="thinking-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '22px' }}>
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-3)', marginLeft: '4px' }}>Thinking…</span>
-                </div>
+
+              {/* Real-time formatted ReactMarkdown for both streaming & complete messages */}
+              {message.content && (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node, ...props }) => <h1 className="text-lg font-display font-bold text-[color:var(--color-amber)] mt-3 mb-2" {...props} />,
+                    h2: ({ node, ...props }) => <h2 className="text-base font-display font-semibold text-[color:var(--color-amber)] mt-3 mb-1.5" {...props} />,
+                    h3: ({ node, ...props }) => <h3 className="text-sm font-display font-semibold text-[color:var(--color-amber-bright)] mt-2 mb-1" {...props} />,
+                    p: ({ node, ...props }) => <p className="mb-2.5 leading-relaxed text-[color:var(--color-text-1)] last:mb-0" {...props} />,
+                    ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2.5 space-y-1 text-[color:var(--color-text-1)]" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2.5 space-y-1 text-[color:var(--color-text-1)]" {...props} />,
+                    li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                    strong: ({ node, ...props }) => <strong className="font-semibold text-[color:var(--color-amber-bright)]" {...props} />,
+                    em: ({ node, ...props }) => <em className="italic text-[color:var(--color-text-1)]" {...props} />,
+                    blockquote: ({ node, ...props }) => (
+                      <blockquote className="border-l-2 border-[color:var(--color-amber)] pl-3 italic text-[color:var(--color-text-2)] my-2.5" {...props} />
+                    ),
+                    code: ({ node, inline, className, children, ...props }) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline ? (
+                        <div className="my-2.5 rounded-lg bg-[color:var(--color-void)] border border-[color:var(--border-subtle)] overflow-hidden">
+                          {match && (
+                            <div className="px-3 py-1 bg-[color:var(--color-elevated)] border-b border-[color:var(--border-subtle)] text-[11px] font-mono text-[color:var(--color-text-3)]">
+                              {match[1]}
+                            </div>
+                          )}
+                          <pre className="p-3 font-mono text-xs overflow-x-auto text-[color:var(--color-amber-bright)]">
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        </div>
+                      ) : (
+                        <code className="px-1.5 py-0.5 rounded bg-[color:var(--color-elevated)] font-mono text-xs text-[color:var(--color-amber-bright)]" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    table: ({ node, ...props }) => (
+                      <div className="overflow-x-auto my-3">
+                        <table className="min-w-full divide-y divide-[color:var(--border-subtle)] text-xs border border-[color:var(--border-subtle)]" {...props} />
+                      </div>
+                    ),
+                    th: ({ node, ...props }) => <th className="px-3 py-2 bg-[color:var(--color-elevated)] font-medium text-left text-[color:var(--color-amber)]" {...props} />,
+                    td: ({ node, ...props }) => <td className="px-3 py-2 border-t border-[color:var(--border-subtle)]" {...props} />,
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
               )}
-              {!message.content && streamPhase === 'streaming' && (
-                <div className="dot-pulse" style={{ display: 'flex', alignItems: 'center', height: '22px' }}>
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              )}
-              {streamPhase === 'done' && (
-                <div style={{ fontSize: '11px', color: 'var(--color-success)', marginLeft: '4px' }}>✓</div>
-              )}
-              {streamPhase === 'error' && (
-                <div style={{ fontSize: '11px', color: 'var(--color-error)', marginLeft: '4px' }}>✗</div>
+
+              {/* Real-time typing cursor while streaming */}
+              {isStreaming && message.content && (
+                <span className="inline-block w-2 h-4 ml-1 bg-[color:var(--color-amber)] animate-pulse rounded-xs align-middle" />
               )}
             </div>
-          ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           )}
         </div>
       </div>
@@ -104,36 +138,6 @@ export default function ChatBubble({ message, isStreaming = false, streamPhase =
       </span>
 
       <style>{`
-        .chat-markdown p { margin-bottom: 0.8em; }
-        .chat-markdown p:last-child { margin-bottom: 0; }
-        .chat-markdown code {
-          background: var(--color-elevated);
-          padding: 2px 4px;
-          border-radius: 4px;
-          font-family: var(--font-mono);
-          color: var(--color-amber-bright);
-        }
-        .chat-markdown pre {
-          background: var(--color-elevated);
-          padding: 16px;
-          border-radius: 12px;
-          overflow-x: auto;
-          margin: 1em 0;
-          border: 1px solid var(--border-subtle);
-        }
-        .chat-markdown pre code {
-          background: transparent;
-          padding: 0;
-          color: var(--color-text-1);
-        }
-        .chat-markdown a {
-          color: var(--color-amber);
-          text-decoration: underline;
-        }
-        .chat-markdown ul, .chat-markdown ol {
-          padding-left: 1.5em;
-          margin-bottom: 0.8em;
-        }
         .thinking-dot {
           display: inline-block;
           width: 6px;

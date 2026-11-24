@@ -1,107 +1,211 @@
-import { useEffect, useState } from 'react';
-import { CloudUpload, FileText, BrainCircuit, Sparkles, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, BrainCircuit, AlertTriangle, X } from 'lucide-react';
 
-export default function UploadProgress({ isUploading }) {
-  const [step, setStep] = useState(0);
+export default function UploadProgress({
+  isOpen,
+  bookTitle = '',
+  percent = 10,
+  message = 'Generating embeddings...',
+  completed = false,
+  error = null,
+  onClose,
+}) {
+  if (!isOpen) return null;
 
-  const steps = [
-    { icon: <CloudUpload size={24} />, title: "Uploading to Cloud", desc: "Securely transferring your book file..." },
-    { icon: <FileText size={24} />, title: "Extracting Content", desc: "Reading text and metadata..." },
-    { icon: <BrainCircuit size={24} />, title: "Generating AI Vectors", desc: "Creating embeddings for smart search..." },
-    { icon: <Sparkles size={24} />, title: "Finalizing Library", desc: "Almost ready to chat!" }
-  ];
-
-  useEffect(() => {
-    if (!isUploading) {
-      setStep(0);
-      return;
-    }
-
-    // Simulate progress through the steps while uploading
-    const intervals = [
-      setTimeout(() => setStep(1), 2000), // Move to step 2 after 2s
-      setTimeout(() => setStep(2), 5000), // Move to step 3 after 5s
-      setTimeout(() => setStep(3), 9000), // Move to step 4 after 9s
-    ];
-
-    return () => intervals.forEach(clearTimeout);
-  }, [isUploading]);
-
-  if (!isUploading) return null;
+  const isError = !!error;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md" style={{ background: 'rgba(0, 0, 0, 0.7)' }}>
-      <div 
-        className="w-full max-w-md p-8 rounded-3xl relative overflow-hidden flex flex-col items-center text-center transform transition-all"
-        style={{ 
-          background: 'var(--color-card)', 
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 40px rgba(245, 158, 11, 0.1)'
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(4, 4, 6, 0.82)',
+        backdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+      }}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '440px',
+          background: 'var(--color-raised)',
+          border: isError ? '1px solid rgba(248, 113, 113, 0.3)' : '1px solid var(--border-hover)',
+          borderRadius: '24px',
+          padding: '36px 32px',
+          boxShadow: 'var(--shadow-modal), 0 0 50px rgba(212, 160, 83, 0.08)',
+          textAlign: 'center',
+          overflow: 'hidden',
         }}
       >
-        {/* Animated Background Gradient */}
-        <div 
-          className="absolute inset-0 opacity-20 pointer-events-none" 
-          style={{ 
-            background: 'radial-gradient(circle at 50% 0%, var(--color-amber) 0%, transparent 70%)',
-            animation: 'pulse 3s infinite alternate'
-          }} 
+        {/* Amber glow accent in background */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '-50px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '220px',
+            height: '140px',
+            background: isError
+              ? 'radial-gradient(circle, rgba(248, 113, 113, 0.25) 0%, transparent 70%)'
+              : 'radial-gradient(circle, var(--color-amber-flare) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
         />
 
-        <div className="relative z-10 w-full">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center animate-bounce shadow-lg shadow-amber-500/20" style={{ background: 'var(--color-amber-ghost)', color: 'var(--color-amber)' }}>
-            {steps[step].icon}
-          </div>
+        {/* Close Button on Error */}
+        {isError && onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="cursor-pointer"
+            style={{
+              position: 'absolute',
+              top: '18px',
+              right: '18px',
+              color: 'var(--color-text-3)',
+              background: 'none',
+              border: 'none',
+              transition: 'color var(--t-fast)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-1)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-3)')}
+          >
+            <X size={20} />
+          </button>
+        )}
 
-          <h2 className="font-display text-2xl mb-2" style={{ color: 'var(--color-text-1)' }}>
-            {steps[step].title}
-          </h2>
-          <p className="font-sans text-sm mb-8 h-5" style={{ color: 'var(--color-text-2)' }}>
-            {steps[step].desc}
+        {/* Central Icon */}
+        <div
+          style={{
+            width: '68px',
+            height: '68px',
+            margin: '0 auto 20px auto',
+            borderRadius: '22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: isError
+              ? 'rgba(248, 113, 113, 0.15)'
+              : (completed ? 'var(--color-amber-glow)' : 'var(--color-amber-ghost)'),
+            border: `1px solid ${isError ? 'rgba(248, 113, 113, 0.35)' : 'var(--border-hover)'}`,
+            color: isError ? 'var(--color-error)' : 'var(--color-amber)',
+            boxShadow: isError ? 'none' : '0 8px 30px rgba(212, 160, 83, 0.18)',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {isError ? (
+            <AlertTriangle size={32} />
+          ) : completed ? (
+            <CheckCircle2 size={36} style={{ color: 'var(--color-amber-bright)' }} />
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <BrainCircuit size={32} />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-3px',
+                  right: '-3px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: 'var(--color-amber)',
+                }}
+                className="animate-ping"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Title & Subtitle */}
+        <h2
+          className="font-display text-2xl font-semibold mb-1"
+          style={{ color: 'var(--color-text-1)', letterSpacing: '-0.01em' }}
+        >
+          {isError ? 'Embedding Error' : completed ? 'Embedding Complete!' : 'Generating Embeddings...'}
+        </h2>
+
+        {bookTitle && (
+          <p className="font-sans text-xs mb-6 truncate" style={{ color: 'var(--color-text-3)' }}>
+            "{bookTitle}"
           </p>
+        )}
 
-          <div className="w-full space-y-4">
-            {steps.map((s, idx) => {
-              const isActive = idx === step;
-              const isPast = idx < step;
-              
-              return (
-                <div key={idx} className="flex items-center gap-4 transition-all duration-500" style={{ opacity: isActive || isPast ? 1 : 0.4, transform: isActive ? 'scale(1.02)' : 'scale(1)' }}>
-                  <div 
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors duration-500"
-                    style={{ 
-                      background: isPast ? 'var(--color-amber)' : (isActive ? 'var(--color-amber-ghost)' : 'var(--color-base)'),
-                      color: isPast ? 'var(--color-void)' : (isActive ? 'var(--color-amber)' : 'var(--color-text-3)'),
-                      border: `1px solid ${isPast || isActive ? 'var(--color-amber)' : 'var(--border-subtle)'}`
-                    }}
-                  >
-                    {isPast ? <CheckCircle2 size={16} /> : <span className="text-xs font-bold">{idx + 1}</span>}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="font-sans text-sm font-medium transition-colors" style={{ color: isActive || isPast ? 'var(--color-text-1)' : 'var(--color-text-3)' }}>
-                      {s.title}
-                    </p>
-                  </div>
-                  {isActive && (
-                    <div className="w-4 h-4 border-2 border-[color:var(--color-amber)] border-t-transparent rounded-full animate-spin" />
-                  )}
-                </div>
-              );
-            })}
+        {/* Progress Bar Container */}
+        <div style={{ marginTop: bookTitle ? '0px' : '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="font-sans text-xs" style={{ color: 'var(--color-text-3)' }}>
+              Live Vector Progress
+            </span>
+            <span className="font-mono text-sm font-bold" style={{ color: 'var(--color-amber-bright)' }}>
+              {isError ? '0%' : `${percent}%`}
+            </span>
           </div>
 
-          {/* Overall Progress Bar */}
-          <div className="w-full h-1.5 mt-8 rounded-full overflow-hidden" style={{ background: 'var(--color-base)' }}>
-            <div 
-              className="h-full rounded-full transition-all duration-1000 ease-out"
-              style={{ 
-                width: `${((step + 1) / steps.length) * 100}%`,
-                background: 'linear-gradient(90deg, var(--color-amber), #fcd34d)',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)'
+          <div
+            style={{
+              width: '100%',
+              height: '8px',
+              borderRadius: '999px',
+              background: 'var(--color-base)',
+              overflow: 'hidden',
+              position: 'relative',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: isError ? '0%' : `${percent}%`,
+                background: isError
+                  ? 'var(--color-error)'
+                  : 'linear-gradient(90deg, var(--color-amber-dim), var(--color-amber-bright))',
+                borderRadius: '999px',
+                boxShadow: isError ? 'none' : '0 0 14px rgba(212, 160, 83, 0.45)',
+                transition: 'width 350ms cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             />
           </div>
         </div>
+
+        {/* Dynamic Live Status Message */}
+        <p
+          className="font-sans text-xs font-medium"
+          style={{
+            color: isError ? 'var(--color-error)' : 'var(--color-text-2)',
+            minHeight: '20px',
+          }}
+        >
+          {message}
+        </p>
+
+        {/* Error Close Button */}
+        {isError && onClose && (
+          <div style={{ marginTop: '20px' }}>
+            <button
+              onClick={onClose}
+              className="font-sans text-sm font-medium px-5 py-2.5 rounded-xl cursor-pointer"
+              style={{
+                background: 'rgba(248, 113, 113, 0.15)',
+                border: '1px solid rgba(248, 113, 113, 0.3)',
+                color: '#f87171',
+                transition: 'all var(--t-fast)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(248, 113, 113, 0.25)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(248, 113, 113, 0.15)')}
+            >
+              Close & Retry
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

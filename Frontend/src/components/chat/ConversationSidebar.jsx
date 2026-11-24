@@ -11,6 +11,7 @@ export default function ConversationSidebar({
   currentConvId,
   isMobileOpen,
   setMobileOpen,
+  refreshTrigger = 0,
 }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,7 @@ export default function ConversationSidebar({
     if (bookId && bookId !== 'placeholder-id') {
       fetchConversations();
     }
-  }, [bookId]);
+  }, [bookId, refreshTrigger, currentConvId]);
 
   const fetchConversations = async () => {
     try {
@@ -149,6 +150,7 @@ export default function ConversationSidebar({
           ) : (
             conversations.map((conv) => {
               const isActive = conv.id === currentConvId;
+              const title = conv.title || 'New Conversation';
               return (
                 <div
                   key={conv.id}
@@ -168,14 +170,20 @@ export default function ConversationSidebar({
                     setMobileOpen(false);
                   }}
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <MessageSquare size={14} style={{ color: isActive ? 'var(--color-amber)' : 'var(--color-text-3)' }} />
-                    <span
-                      className="font-sans text-sm truncate"
-                      style={{ color: isActive ? 'var(--color-text-1)' : 'var(--color-text-2)', fontWeight: isActive ? 500 : 400 }}
-                    >
-                      {new Date(conv.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                    </span>
+                  <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 pr-2">
+                    <MessageSquare size={14} className="shrink-0" style={{ color: isActive ? 'var(--color-amber)' : 'var(--color-text-3)' }} />
+                    <div className="flex flex-col min-w-0 overflow-hidden">
+                      <span
+                        className="font-sans text-sm truncate"
+                        style={{ color: isActive ? 'var(--color-text-1)' : 'var(--color-text-2)', fontWeight: isActive ? 500 : 400 }}
+                        title={title}
+                      >
+                        {title}
+                      </span>
+                      <span className="font-sans text-[11px] truncate" style={{ color: 'var(--color-text-3)' }}>
+                        {new Date(conv.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={(e) => {
@@ -183,8 +191,9 @@ export default function ConversationSidebar({
                       setConvToDelete(conv.id);
                       setDeleteModalOpen(true);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all hover:bg-red-500/10 hover:text-red-400"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all hover:bg-red-500/10 hover:text-red-400 shrink-0"
                     style={{ color: 'var(--color-text-3)' }}
+                    title="Delete Conversation"
                   >
                     <Trash2 size={14} />
                   </button>

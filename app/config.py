@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     GROQ_API_KEY:str
     CVOICE_API_KEY:str
 
+    # MODELS
+    LOCAL_EMBEDDING_MODEL:str
+    LOCAL_TEXT_MODEL:str
+
     # QDRANT_URL: str | None = None
     # QDRANT_CLOUD_API: str | None = None
     

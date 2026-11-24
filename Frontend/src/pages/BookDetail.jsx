@@ -16,6 +16,7 @@ export default function BookDetail() {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -56,12 +57,17 @@ export default function BookDetail() {
   };
 
   const handleDelete = async () => {
+    if (isDeleting) return;
     try {
+      setIsDeleting(true);
       await api.delete(`/books/${bookId}/delete`);
       toast.success('Book deleted successfully');
+      setDeleteModalOpen(false);
       navigate('/dashboard');
     } catch (err) {
       toast.error('Failed to delete book');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -418,6 +424,7 @@ export default function BookDetail() {
         message={`Are you sure you want to delete "${book.title}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteModalOpen(false)}
+        loading={isDeleting}
       />
     </>
   );

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import FileUploadZone from '../components/ui/FileUploadZone';
 import UploadProgress from '../components/ui/UploadProgress';
-import api from '../lib/api';
+import api, { BASE_URL } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
+import { useAuthStore } from '../store/authStore';
 
 export default function UploadBook() {
   const [file, setFile] = useState(null);
@@ -17,10 +18,51 @@ export default function UploadBook() {
     number_of_pages: '',
   });
   const [uploading, setUploading] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressData, setProgressData] = useState({
+    percent: 10,
+    message: 'Uploading document to cloud storage...',
+    completed: false,
+    error: null,
+  });
+
   const navigate = useNavigate();
   const toast = useToast();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const trackRealtimeProgress = (bookId) => {
+    let finished = false;
+
+    const pollInterval = setInterval(async () => {
+      if (finished) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      try {
+        const res = await api.get(`/books/${bookId}/progress`);
+        const data = res.data;
+        setProgressData(data);
+
+        if (data.completed) {
+          finished = true;
+          clearInterval(pollInterval);
+          toast.success('Embedding successful! Opening chat...');
+          setTimeout(() => {
+            setShowProgressModal(false);
+            navigate(`/books/${bookId}/chat`);
+          }, 800);
+        } else if (data.error) {
+          finished = true;
+          clearInterval(pollInterval);
+          toast.error(data.error);
+        }
+      } catch (err) {
+        console.error('Progress check error:', err);
+      }
+    }, 500);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,13 +82,37 @@ export default function UploadBook() {
 
     try {
       setUploading(true);
+      setShowProgressModal(true);
+      setProgressData({
+        percent: 10,
+        message: 'Uploading document to cloud storage...',
+        completed: false,
+        error: null,
+      });
+
       const res = await api.post('/books/create', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const uploadPct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const scaled = 10 + Math.round((uploadPct * 15) / 100);
+            setProgressData((prev) => ({
+              ...prev,
+              percent: scaled,
+              message: `Transferring file: ${uploadPct}% (${(progressEvent.loaded / (1024 * 1024)).toFixed(1)} MB)...`,
+            }));
+          }
+        },
       });
-      toast.success('Book uploaded successfully!');
-      navigate(`/books/${res.data.book_id}`);
+
+      const bookId = res.data.book_id;
+      trackRealtimeProgress(bookId);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to upload book');
+      setProgressData((prev) => ({
+        ...prev,
+        error: err.response?.data?.detail || 'Failed to upload book',
+      }));
     } finally {
       setUploading(false);
     }
@@ -55,7 +121,15 @@ export default function UploadBook() {
   return (
     <>
       <Navbar />
-      <UploadProgress isUploading={uploading} />
+      <UploadProgress
+        isOpen={showProgressModal}
+        bookTitle={formData.title}
+        percent={progressData.percent}
+        message={progressData.message}
+        completed={progressData.completed}
+        error={progressData.error}
+        onClose={() => setShowProgressModal(false)}
+      />
       <main className="min-h-screen pt-24 pb-12 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8">
